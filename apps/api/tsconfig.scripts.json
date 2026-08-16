@@ -1,0 +1,7 @@
+{
+  "extends": "@meeting-system/tsconfig/nestjs.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src", "scripts"]
+}

@@ -5,6 +5,9 @@ import { DatabaseModule } from "./database/database.module.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { InternalModule } from "./internal/internal.module.js";
+import { MeetingTypesModule } from "./meeting-types/meeting-types.module.js";
+import { MeetingsModule } from "./meetings/meetings.module.js";
+import { AttendanceModule } from "./attendance/attendance.module.js";
 
 @Module({
   imports: [
@@ -22,6 +25,9 @@ import { InternalModule } from "./internal/internal.module.js";
     AuthModule,
     HealthModule,
     InternalModule,
+    MeetingTypesModule,
+    MeetingsModule,
+    AttendanceModule,
   ],
 })
 export class AppModule {}

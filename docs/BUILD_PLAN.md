@@ -36,14 +36,14 @@ Auth is in Phase 0 deliberately. Bolting guards onto an existing controller surf
 
 **Goal:** the data model exists and the database enforces its own invariants.
 
-- [ ] `MeetingTypeSchema` with `guildId`, roles as `{ roleId, nameSnapshot }`, `archived`
-- [ ] `MeetingSchema` with status enum, `voiceChannelIds` array, `pauses[]`, `expectedMembers[]`, `summary` fields, nullable `stats`
-- [ ] `AttendanceSchema` with `sessions[]` including `source`, `expected`, `manuallyEdited`, nullable `stats`
-- [ ] Partial unique index on `{ guildId, voiceChannelIds }` for status in `['ACTIVE','PAUSED']`
-- [ ] Compound unique index on `{ meeting, discordUserId }`
-- [ ] Query indexes for the history and active-meeting pages
-- [ ] Duplicate-key (11000) handling mapped to `ConflictException`
-- [ ] Seed script producing one guild, two meeting types, and three completed meetings with realistic attendance
+- [x] `MeetingTypeSchema` with `guildId`, roles as `{ roleId, nameSnapshot }`, `archived`
+- [x] `MeetingSchema` with status enum, `voiceChannelIds` array, `pauses[]`, `expectedMembers[]`, `summary` fields, nullable `stats`
+- [x] `AttendanceSchema` with `sessions[]` including `source`, `expected`, `manuallyEdited`, nullable `stats`
+- [x] Partial unique index on `{ guildId, voiceChannelIds }` for status in `['ACTIVE','PAUSED']`
+- [x] Compound unique index on `{ meeting, discordUserId }`
+- [x] Query indexes for the history and active-meeting pages
+- [x] Duplicate-key (11000) handling mapped to `ConflictException`
+- [x] Seed script producing one guild, two meeting types, and three completed meetings with realistic attendance
 
 **Checkpoint:** tests prove that inserting a second active meeting on the same channel throws, and that a second attendance document for the same user and meeting throws. The seed script runs clean twice in a row.
 
