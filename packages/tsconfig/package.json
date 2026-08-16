@@ -1,0 +1,10 @@
+{
+  "name": "@meeting-system/tsconfig",
+  "private": true,
+  "version": "0.0.0",
+  "files": [
+    "base.json",
+    "nestjs.json",
+    "nextjs.json"
+  ]
+}
