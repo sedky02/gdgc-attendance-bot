@@ -103,3 +103,18 @@ export const ListActiveMeetingsQueryDto = z.object({
   guildId: z.string(),
 });
 export type ListActiveMeetingsQueryDto = z.infer<typeof ListActiveMeetingsQueryDto>;
+
+export const ListMeetingsQueryDto = z.object({
+  guildId: z.string(),
+  status: MeetingStatus.optional(),
+  page: z.coerce.number().int().positive().default(1),
+});
+export type ListMeetingsQueryDto = z.infer<typeof ListMeetingsQueryDto>;
+
+export const MeetingsPageSchema = z.object({
+  items: z.array(MeetingSchema),
+  page: z.number().int().positive(),
+  pageSize: z.number().int().positive(),
+  total: z.number().int().nonnegative(),
+});
+export type MeetingsPage = z.infer<typeof MeetingsPageSchema>;

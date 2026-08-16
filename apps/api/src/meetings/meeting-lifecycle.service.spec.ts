@@ -289,6 +289,30 @@ describe("MeetingLifecycleService", () => {
     });
   });
 
+  describe("listMeetings", () => {
+    it("filters by status and paginates newest-first", async () => {
+      const first = await service.start(
+        startDto({ voiceChannelIds: ["channel-a"], observedAt: new Date("2026-08-01T19:00:00Z") }),
+      );
+      await service.end(first.id, { endedBy: "manager-1", observedAt: new Date("2026-08-01T20:00:00Z") });
+
+      const second = await service.start(
+        startDto({ voiceChannelIds: ["channel-b"], observedAt: new Date("2026-08-08T19:00:00Z") }),
+      );
+      await service.end(second.id, { endedBy: "manager-1", observedAt: new Date("2026-08-08T20:00:00Z") });
+
+      await service.start(startDto({ voiceChannelIds: ["channel-c"], observedAt: new Date("2026-08-15T19:00:00Z") }));
+
+      const completedPage = await service.listMeetings({ guildId: "guild-1", status: "COMPLETED", page: 1 });
+
+      expect(completedPage.total).toBe(2);
+      expect(completedPage.items.map((m) => m.id)).toEqual([second.id, first.id]);
+
+      const activePage = await service.listMeetings({ guildId: "guild-1", status: "ACTIVE", page: 1 });
+      expect(activePage.total).toBe(1);
+    });
+  });
+
   describe("session cleanup on end/cancel", () => {
     it("end closes any still-open session so no record outlives the meeting", async () => {
       const meeting = await service.start(startDto());

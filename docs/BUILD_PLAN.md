@@ -136,16 +136,16 @@ Manual correction is what makes the system trustworthy. One night of a downed bo
 
 **Goal:** view history, watch live meetings, edit summaries.
 
-- [ ] Protected layout with sidebar and Discord profile
-- [ ] Overview: active meetings, recent meetings, counts
-- [ ] Meetings list with status filter and pagination
-- [ ] Meeting detail: header, attendance table (member, first join, duration, sessions, late), absentees section
-- [ ] Live view polling `/meetings/active` every 10s via TanStack Query, with a live indicator
-- [ ] Inline summary editor with optimistic update
-- [ ] Manual attendance correction UI, flagged visually where `manuallyEdited`
-- [ ] Meeting types list and editor
-- [ ] Loading skeletons, empty states, error boundaries
-- [ ] Responsive down to mobile
+- [x] Protected layout with sidebar and Discord profile
+- [x] Overview: active meetings, recent meetings, counts
+- [x] Meetings list with status filter and pagination
+- [x] Meeting detail: header, attendance table (member, first join, duration, sessions, late), absentees section
+- [x] Live view polling `/meetings/active` every 10s via TanStack Query, with a live indicator
+- [x] Inline summary editor with optimistic update
+- [x] Manual attendance correction UI, flagged visually where `manuallyEdited`
+- [x] Meeting types list and editor
+- [x] Loading skeletons, empty states, error boundaries
+- [x] Responsive down to mobile
 
 **Checkpoint:** a meeting running in Discord is visible live in the dashboard and updates within a poll interval. Editing a summary persists and shows the editor's name.
 

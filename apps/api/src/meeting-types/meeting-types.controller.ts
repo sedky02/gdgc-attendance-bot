@@ -1,11 +1,13 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import { CreateMeetingTypeDto, ListMeetingTypesQueryDto, UpdateMeetingTypeDto } from "@meeting-system/contracts";
-import { ServiceOnly } from "../common/decorators/service-only.decorator.js";
+import { ServiceOrDashboard } from "../common/decorators/service-or-dashboard.decorator.js";
+import { ResourceType } from "../common/decorators/resource-type.decorator.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
 import { MeetingTypesService } from "./meeting-types.service.js";
 
 @Controller("meeting-types")
-@ServiceOnly()
+@ServiceOrDashboard()
+@ResourceType("meetingType")
 export class MeetingTypesController {
   constructor(@Inject(MeetingTypesService) private readonly meetingTypesService: MeetingTypesService) {}
 

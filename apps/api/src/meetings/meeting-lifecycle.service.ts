@@ -4,7 +4,9 @@ import type { Model } from "mongoose";
 import type {
   CancelMeetingDto,
   EndMeetingDto,
+  ListMeetingsQueryDto,
   Meeting as MeetingDto,
+  MeetingsPage,
   PauseMeetingDto,
   ResumeMeetingDto,
   StartMeetingDto,
@@ -18,6 +20,7 @@ import { Meeting } from "./schemas/meeting.schema.js";
 import { toMeetingDto } from "./meetings.mapper.js";
 
 const LIVE_STATUSES = ["ACTIVE", "PAUSED"] as const;
+const MEETINGS_PAGE_SIZE = 20;
 
 @Injectable()
 export class MeetingLifecycleService {
@@ -169,6 +172,24 @@ export class MeetingLifecycleService {
       throw new NotFoundException(`Meeting ${id} not found`);
     }
     return toMeetingDto(doc);
+  }
+
+  async listMeetings(query: ListMeetingsQueryDto): Promise<MeetingsPage> {
+    const filter: Record<string, unknown> = { guildId: query.guildId };
+    if (query.status) {
+      filter.status = query.status;
+    }
+
+    const [items, total] = await Promise.all([
+      this.meetingModel
+        .find(filter)
+        .sort({ startedAt: -1 })
+        .skip((query.page - 1) * MEETINGS_PAGE_SIZE)
+        .limit(MEETINGS_PAGE_SIZE),
+      this.meetingModel.countDocuments(filter),
+    ]);
+
+    return { items: items.map(toMeetingDto), page: query.page, pageSize: MEETINGS_PAGE_SIZE, total };
   }
 
   async listActive(guildId: string): Promise<MeetingDto[]> {

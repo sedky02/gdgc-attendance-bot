@@ -1,9 +1,9 @@
-import { Controller, Get, Inject, Param } from "@nestjs/common";
-import { ServiceOnly } from "../common/decorators/service-only.decorator.js";
+import { Controller, Get, Inject, Param, UseGuards } from "@nestjs/common";
+import { ServiceOrJwtGuard } from "../common/guards/service-or-jwt.guard.js";
 import { ReportsService } from "./reports.service.js";
 
 @Controller("meetings")
-@ServiceOnly()
+@UseGuards(ServiceOrJwtGuard)
 export class ReportsController {
   constructor(@Inject(ReportsService) private readonly reportsService: ReportsService) {}
 

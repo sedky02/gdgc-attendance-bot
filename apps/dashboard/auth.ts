@@ -37,6 +37,7 @@ export const { handlers, signIn, signOut, auth }: NextAuthResult = NextAuth({
 
       session.user.discordUserId = discordUserId;
       session.user.username = username;
+      session.guildId = DISCORD_GUILD_ID;
 
       // Minted fresh per session read: the JWT the dashboard presents to the
       // API, scoped to this guild. Role membership is filled in once the API

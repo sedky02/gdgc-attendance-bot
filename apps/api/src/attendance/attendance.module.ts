@@ -2,6 +2,8 @@ import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { Attendance, AttendanceSchema } from "./schemas/attendance.schema.js";
 import { Meeting, MeetingSchema } from "../meetings/schemas/meeting.schema.js";
+import { AuthModule } from "../auth/auth.module.js";
+import { GuildOwnershipModule } from "../common/guild-ownership.module.js";
 import { AttendanceResolverService } from "./attendance-resolver.service.js";
 import { AttendanceStatsService } from "./attendance-stats.service.js";
 import { AttendanceService } from "./attendance.service.js";
@@ -19,6 +21,8 @@ import { AttendanceEditController } from "./attendance-edit.controller.js";
       { name: Attendance.name, schema: AttendanceSchema },
       { name: Meeting.name, schema: MeetingSchema },
     ]),
+    AuthModule,
+    GuildOwnershipModule,
   ],
   controllers: [AttendanceController, AttendanceEditController],
   providers: [AttendanceResolverService, AttendanceStatsService, AttendanceService],

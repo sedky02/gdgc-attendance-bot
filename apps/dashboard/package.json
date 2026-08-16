@@ -19,7 +19,8 @@
     "next": "^14.2.15",
     "next-auth": "^5.0.0-beta.25",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@meeting-system/tsconfig": "workspace:*",
@@ -27,6 +28,9 @@
     "@types/node": "^22.7.0",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
     "typescript": "^5.6.0",
     "vitest": "^2.1.2"
   }

@@ -7,6 +7,7 @@ declare module "next-auth" {
       username: string;
     };
     apiToken: string;
+    guildId: string;
   }
 }
 
