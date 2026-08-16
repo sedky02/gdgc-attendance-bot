@@ -1,0 +1,21 @@
+- when we start a meeting it tells how many attendaces and show updates and then put reports at the end of the day (attendances based on roles) 
+- we collect reports in a platform with list of meetings that happend, with pv putted by lead or made with tanscripts resume (if possible) 
+
+here is the workflow and what i thought : 
+
+we have /configure-meeting to add a new type of meeting that asks u to name it, add the role of the needed members
+we have /start-meeting with selection of the type of meeting and after starting this one we have 
+/cancel-meeting if we want to cancel this one, /pause-meeting to pause the meeting 
+while the meeting is on we track the presence of the members in the voice chat 
+who didnt enter, who entereed and at any time (how much late), the track that a person entered and left and went back.... each on its own track
+
+we have /edit-meeting that lets u change the name or the role of a sepecefic meeting 
+
+
+so i am thinking of a Meeting Model with name and role 
+another one for the actual meeting that started with the date and the meeting model id
+another one for tracks of history of entery 
+
+elaborate more on the logic, give me suggestions to fix the flows in my thinking and also suggest better ideas or other approaches
+
+
