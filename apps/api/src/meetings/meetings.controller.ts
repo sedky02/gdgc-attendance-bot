@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import {
   CancelMeetingDto,
   EndMeetingDto,
@@ -6,6 +6,7 @@ import {
   PauseMeetingDto,
   ResumeMeetingDto,
   StartMeetingDto,
+  UpdateMeetingSummaryDto,
 } from "@meeting-system/contracts";
 import { ServiceOnly } from "../common/decorators/service-only.decorator.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
@@ -49,5 +50,10 @@ export class MeetingsController {
   @Post(":id/cancel")
   cancel(@Param("id") id: string, @Body(new ZodValidationPipe(CancelMeetingDto)) dto: CancelMeetingDto) {
     return this.meetingLifecycleService.cancel(id, dto);
+  }
+
+  @Patch(":id/summary")
+  updateSummary(@Param("id") id: string, @Body(new ZodValidationPipe(UpdateMeetingSummaryDto)) dto: UpdateMeetingSummaryDto) {
+    return this.meetingLifecycleService.updateSummary(id, dto);
   }
 }

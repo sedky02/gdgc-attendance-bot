@@ -3,8 +3,10 @@ import { MongooseModule } from "@nestjs/mongoose";
 import { Attendance, AttendanceSchema } from "./schemas/attendance.schema.js";
 import { Meeting, MeetingSchema } from "../meetings/schemas/meeting.schema.js";
 import { AttendanceResolverService } from "./attendance-resolver.service.js";
+import { AttendanceStatsService } from "./attendance-stats.service.js";
 import { AttendanceService } from "./attendance.service.js";
 import { AttendanceController } from "./attendance.controller.js";
+import { AttendanceEditController } from "./attendance-edit.controller.js";
 
 @Module({
   imports: [
@@ -18,8 +20,8 @@ import { AttendanceController } from "./attendance.controller.js";
       { name: Meeting.name, schema: MeetingSchema },
     ]),
   ],
-  controllers: [AttendanceController],
-  providers: [AttendanceResolverService, AttendanceService],
-  exports: [MongooseModule, AttendanceResolverService, AttendanceService],
+  controllers: [AttendanceController, AttendanceEditController],
+  providers: [AttendanceResolverService, AttendanceStatsService, AttendanceService],
+  exports: [MongooseModule, AttendanceResolverService, AttendanceStatsService, AttendanceService],
 })
 export class AttendanceModule {}

@@ -8,10 +8,12 @@ import type {
   PauseMeetingDto,
   ResumeMeetingDto,
   StartMeetingDto,
+  UpdateMeetingSummaryDto,
 } from "@meeting-system/contracts";
 import { translateMongoWriteError } from "../common/utils/mongo-error.util.js";
 import { MeetingTypesService } from "../meeting-types/meeting-types.service.js";
 import { AttendanceResolverService } from "../attendance/attendance-resolver.service.js";
+import { AttendanceStatsService } from "../attendance/attendance-stats.service.js";
 import { Meeting } from "./schemas/meeting.schema.js";
 import { toMeetingDto } from "./meetings.mapper.js";
 
@@ -23,6 +25,7 @@ export class MeetingLifecycleService {
     @InjectModel(Meeting.name) private readonly meetingModel: Model<Meeting>,
     @Inject(MeetingTypesService) private readonly meetingTypesService: MeetingTypesService,
     @Inject(AttendanceResolverService) private readonly attendanceResolver: AttendanceResolverService,
+    @Inject(AttendanceStatsService) private readonly attendanceStatsService: AttendanceStatsService,
   ) {}
 
   async start(dto: StartMeetingDto): Promise<MeetingDto> {
@@ -123,8 +126,9 @@ export class MeetingLifecycleService {
     }
 
     await this.attendanceResolver.closeAllOpenSessions(id, dto.observedAt);
+    await this.attendanceStatsService.freezeStats(id, dto.observedAt);
 
-    return toMeetingDto(updated);
+    return this.getById(id);
   }
 
   async cancel(id: string, dto: CancelMeetingDto): Promise<MeetingDto> {
@@ -144,6 +148,18 @@ export class MeetingLifecycleService {
 
     await this.attendanceResolver.closeAllOpenSessions(id, dto.observedAt);
 
+    return toMeetingDto(updated);
+  }
+
+  async updateSummary(id: string, dto: UpdateMeetingSummaryDto): Promise<MeetingDto> {
+    const updated = await this.meetingModel.findByIdAndUpdate(
+      id,
+      { summary: dto.summary, summaryUpdatedBy: dto.summaryUpdatedBy, summaryUpdatedAt: dto.observedAt },
+      { new: true },
+    );
+    if (!updated) {
+      throw new NotFoundException(`Meeting ${id} not found`);
+    }
     return toMeetingDto(updated);
   }
 

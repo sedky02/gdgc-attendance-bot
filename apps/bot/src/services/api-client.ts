@@ -3,6 +3,7 @@ import {
   CancelMeetingDto,
   CreateMeetingTypeDto,
   EndMeetingDto,
+  MeetingReportSchema,
   MeetingSchema,
   MeetingTypeSchema,
   PauseMeetingDto,
@@ -14,6 +15,7 @@ import {
   VoiceEventDto,
   type Attendance,
   type Meeting,
+  type MeetingReport,
   type MeetingType,
 } from "@meeting-system/contracts";
 import { z } from "zod";
@@ -139,6 +141,9 @@ export const apiClient = {
 
     attendance: async (id: string): Promise<Attendance[]> =>
       z.array(AttendanceSchema).parse(await request<unknown>(`/meetings/${id}/attendance`)),
+
+    report: async (id: string): Promise<MeetingReport> =>
+      MeetingReportSchema.parse(await request<unknown>(`/meetings/${id}/report`)),
   },
 
   internal: {

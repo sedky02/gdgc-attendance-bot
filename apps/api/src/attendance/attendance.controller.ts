@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Inject, Param, Post } from "@nestjs/common";
-import { SyncAttendanceDto } from "@meeting-system/contracts";
+import { ManualAttendanceDto, SyncAttendanceDto } from "@meeting-system/contracts";
 import { ServiceOnly } from "../common/decorators/service-only.decorator.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
 import { AttendanceService } from "./attendance.service.js";
@@ -27,5 +27,10 @@ export class AttendanceController {
       source: "SYNC",
     });
     return { acknowledged: true };
+  }
+
+  @Post(":id/attendance/manual")
+  manual(@Param("id") meetingId: string, @Body(new ZodValidationPipe(ManualAttendanceDto)) dto: ManualAttendanceDto) {
+    return this.attendanceService.manualCorrection(meetingId, dto);
   }
 }

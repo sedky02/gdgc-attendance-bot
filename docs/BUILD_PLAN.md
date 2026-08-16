@@ -118,13 +118,13 @@ That manual test is the whole reason the reconciler exists. Actually run it.
 
 **Goal:** meaningful output, both in Discord and via the API.
 
-- [ ] `AttendanceStatsService`: first join, lateness, total duration excluding paused intervals, session count, currently-present
-- [ ] Computed on read for live meetings, written once to `stats` at `end`
-- [ ] Meeting-level `stats`: present, expected, unexpected, duration
-- [ ] `GET /meetings/:id/report` assembling meeting + attendance + absentees from `expectedMembers`
-- [ ] Attendance report embed posted on `/end-meeting`
-- [ ] `PATCH /meetings/:id/summary` with `summaryUpdatedBy` and `summaryUpdatedAt`
-- [ ] `POST /meetings/:id/attendance/manual` and `PATCH /attendance/:id`, both setting `manuallyEdited` and `editedBy`
+- [x] `AttendanceStatsService`: first join, lateness, total duration excluding paused intervals, session count, currently-present
+- [x] Computed on read for live meetings, written once to `stats` at `end`
+- [x] Meeting-level `stats`: present, expected, unexpected, duration
+- [x] `GET /meetings/:id/report` assembling meeting + attendance + absentees from `expectedMembers`
+- [x] Attendance report embed posted on `/end-meeting`
+- [x] `PATCH /meetings/:id/summary` with `summaryUpdatedBy` and `summaryUpdatedAt`
+- [x] `POST /meetings/:id/attendance/manual` and `PATCH /attendance/:id`, both setting `manuallyEdited` and `editedBy`
 
 **Checkpoint:** ending a meeting posts a correct report. Durations exclude paused time. Absentees come from the snapshot, not from current role membership. Frozen stats match what the live calculation returned a moment earlier.
 

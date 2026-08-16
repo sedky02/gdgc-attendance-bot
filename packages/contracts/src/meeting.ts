@@ -95,6 +95,7 @@ export type ResumeMeetingDto = z.infer<typeof ResumeMeetingDto>;
 export const UpdateMeetingSummaryDto = z.object({
   summary: z.string().max(4000),
   summaryUpdatedBy: z.string(),
+  observedAt: z.coerce.date(),
 });
 export type UpdateMeetingSummaryDto = z.infer<typeof UpdateMeetingSummaryDto>;
 

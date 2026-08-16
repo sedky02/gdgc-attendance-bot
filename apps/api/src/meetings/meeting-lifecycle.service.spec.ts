@@ -8,6 +8,7 @@ import { ConflictException, NotFoundException } from "@nestjs/common";
 import { MeetingLifecycleService } from "./meeting-lifecycle.service.js";
 import { MeetingTypesService } from "../meeting-types/meeting-types.service.js";
 import { AttendanceResolverService } from "../attendance/attendance-resolver.service.js";
+import { AttendanceStatsService } from "../attendance/attendance-stats.service.js";
 import { Meeting, MeetingSchema } from "./schemas/meeting.schema.js";
 import { MeetingType, MeetingTypeSchema } from "../meeting-types/schemas/meeting-type.schema.js";
 import { Attendance, AttendanceSchema } from "../attendance/schemas/attendance.schema.js";
@@ -33,7 +34,7 @@ describe("MeetingLifecycleService", () => {
           { name: Attendance.name, schema: AttendanceSchema },
         ]),
       ],
-      providers: [MeetingLifecycleService, MeetingTypesService, AttendanceResolverService],
+      providers: [MeetingLifecycleService, MeetingTypesService, AttendanceResolverService, AttendanceStatsService],
     }).compile();
 
     service = moduleRef.get(MeetingLifecycleService);
@@ -202,6 +203,27 @@ describe("MeetingLifecycleService", () => {
       expect(ended.status).toBe("COMPLETED");
       expect(ended.endedBy).toBe("manager-1");
       expect(ended.endedAt).toEqual(new Date("2026-08-16T20:35:00Z"));
+    });
+
+    it("freezes meeting and attendance stats on end", async () => {
+      const meeting = await service.start(
+        startDto({ presentMembers: [{ discordUserId: "user-1", usernameSnapshot: "aymen", displayNameSnapshot: "Aymen" }] }),
+      );
+
+      const ended = await service.end(meeting.id, { endedBy: "manager-1", observedAt: new Date("2026-08-16T20:35:00Z") });
+
+      expect(ended.stats).toEqual({
+        presentCount: 1,
+        expectedCount: 1,
+        unexpectedCount: 0,
+        durationMs: new Date("2026-08-16T20:35:00Z").getTime() - new Date("2026-08-16T19:00:00Z").getTime(),
+      });
+
+      const doc = await attendanceModel.findOne({ meeting: meeting.id, discordUserId: "user-1" });
+      expect(doc?.stats?.sessionCount).toBe(1);
+      expect(doc?.stats?.totalDurationMs).toBe(
+        new Date("2026-08-16T20:35:00Z").getTime() - new Date("2026-08-16T19:00:00Z").getTime(),
+      );
     });
 
     it("ends a PAUSED meeting", async () => {

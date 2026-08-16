@@ -9,6 +9,7 @@ import { InternalModule } from "./internal/internal.module.js";
 import { MeetingTypesModule } from "./meeting-types/meeting-types.module.js";
 import { MeetingsModule } from "./meetings/meetings.module.js";
 import { AttendanceModule } from "./attendance/attendance.module.js";
+import { ReportsModule } from "./reports/reports.module.js";
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { AttendanceModule } from "./attendance/attendance.module.js";
     MeetingTypesModule,
     MeetingsModule,
     AttendanceModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}

@@ -7,6 +7,7 @@ import { InternalService } from "./internal.service.js";
 import { MeetingLifecycleService } from "../meetings/meeting-lifecycle.service.js";
 import { MeetingTypesService } from "../meeting-types/meeting-types.service.js";
 import { AttendanceResolverService } from "../attendance/attendance-resolver.service.js";
+import { AttendanceStatsService } from "../attendance/attendance-stats.service.js";
 import { Meeting, MeetingSchema } from "../meetings/schemas/meeting.schema.js";
 import { MeetingType, MeetingTypeSchema } from "../meeting-types/schemas/meeting-type.schema.js";
 import { Attendance, AttendanceSchema } from "../attendance/schemas/attendance.schema.js";
@@ -32,7 +33,7 @@ describe("InternalService", () => {
           { name: Attendance.name, schema: AttendanceSchema },
         ]),
       ],
-      providers: [InternalService, MeetingLifecycleService, MeetingTypesService, AttendanceResolverService],
+      providers: [InternalService, MeetingLifecycleService, MeetingTypesService, AttendanceResolverService, AttendanceStatsService],
     }).compile();
 
     internalService = moduleRef.get(InternalService);
