@@ -1,4 +1,11 @@
-import { PingResponseDto } from "@meeting-system/contracts";
+import {
+  CreateMeetingTypeDto,
+  MeetingTypeSchema,
+  PingResponseDto,
+  UpdateMeetingTypeDto,
+  type MeetingType,
+} from "@meeting-system/contracts";
+import { z } from "zod";
 import { env } from "../config.js";
 
 export class ApiError extends Error {
@@ -73,4 +80,26 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
 export const apiClient = {
   ping: async () => PingResponseDto.parse(await request<unknown>("/internal/ping")),
+
+  meetingTypes: {
+    list: async (guildId: string, archived?: boolean): Promise<MeetingType[]> => {
+      const params = new URLSearchParams({ guildId });
+      if (archived !== undefined) {
+        params.set("archived", String(archived));
+      }
+      return z.array(MeetingTypeSchema).parse(await request<unknown>(`/meeting-types?${params}`));
+    },
+
+    get: async (id: string): Promise<MeetingType> =>
+      MeetingTypeSchema.parse(await request<unknown>(`/meeting-types/${id}`)),
+
+    create: async (dto: CreateMeetingTypeDto): Promise<MeetingType> =>
+      MeetingTypeSchema.parse(await request<unknown>("/meeting-types", { method: "POST", body: dto })),
+
+    update: async (id: string, dto: UpdateMeetingTypeDto): Promise<MeetingType> =>
+      MeetingTypeSchema.parse(await request<unknown>(`/meeting-types/${id}`, { method: "PATCH", body: dto })),
+
+    archive: async (id: string): Promise<MeetingType> =>
+      MeetingTypeSchema.parse(await request<unknown>(`/meeting-types/${id}`, { method: "DELETE" })),
+  },
 };

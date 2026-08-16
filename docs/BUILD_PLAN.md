@@ -55,13 +55,13 @@ No `MeetingReport` collection. The summary lives on the meeting.
 
 **Goal:** full CRUD, driven from Discord.
 
-- [ ] `MeetingTypesService` and controller for list, create, get, patch, soft-delete
-- [ ] All input validated against the shared Zod schemas
-- [ ] `/configure-meeting` — modal for the name, `RoleSelectMenuBuilder` for roles
-- [ ] `/edit-meeting-type` — select the type, then modal and role select, prefilled
-- [ ] Refresh `nameSnapshot` on every edit
-- [ ] Permission gate via `setDefaultMemberPermissions(ManageEvents)`
-- [ ] Embed builders for success and error states
+- [x] `MeetingTypesService` and controller for list, create, get, patch, soft-delete
+- [x] All input validated against the shared Zod schemas
+- [x] `/configure-meeting` — modal for the name, `RoleSelectMenuBuilder` for roles
+- [x] `/edit-meeting-type` — select the type, then modal and role select, prefilled
+- [x] Refresh `nameSnapshot` on every edit
+- [x] Permission gate via `setDefaultMemberPermissions(ManageEvents)`
+- [x] Embed builders for success and error states
 
 **Checkpoint:** you can create a meeting type entirely from Discord using native selects, edit it, and see the change reflected via `GET /meeting-types`. Renaming the role in Discord does not break the type.
 

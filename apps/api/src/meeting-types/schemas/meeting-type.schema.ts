@@ -27,6 +27,10 @@ export class MeetingType {
 
   @Prop({ type: Boolean, default: false })
   archived: boolean;
+
+  // Populated by Mongoose via the `timestamps` schema option above, not by @Prop.
+  declare createdAt: Date;
+  declare updatedAt: Date;
 }
 
 export type MeetingTypeDocument = HydratedDocument<MeetingType>;

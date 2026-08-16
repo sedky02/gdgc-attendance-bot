@@ -21,13 +21,26 @@ export type MeetingType = z.infer<typeof MeetingTypeSchema>;
 export const CreateMeetingTypeDto = z.object({
   guildId: z.string(),
   name: z.string().min(1).max(100),
-  roleIds: z.array(z.string()),
+  roles: z.array(MeetingTypeRoleSchema),
   createdBy: z.string(),
 });
 export type CreateMeetingTypeDto = z.infer<typeof CreateMeetingTypeDto>;
 
 export const UpdateMeetingTypeDto = z.object({
   name: z.string().min(1).max(100).optional(),
-  roleIds: z.array(z.string()).optional(),
+  roles: z.array(MeetingTypeRoleSchema).optional(),
 });
 export type UpdateMeetingTypeDto = z.infer<typeof UpdateMeetingTypeDto>;
+
+// `z.coerce.boolean()` runs plain `Boolean(value)`, so a literal "false" query
+// string coerces to `true` — any non-empty string is truthy. Parse the two
+// accepted literals explicitly instead.
+const queryBoolean = z
+  .enum(["true", "false"])
+  .transform((value) => value === "true");
+
+export const ListMeetingTypesQueryDto = z.object({
+  guildId: z.string(),
+  archived: queryBoolean.optional(),
+});
+export type ListMeetingTypesQueryDto = z.infer<typeof ListMeetingTypesQueryDto>;
