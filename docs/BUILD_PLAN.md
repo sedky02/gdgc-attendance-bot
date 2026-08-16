@@ -73,15 +73,15 @@ Native components, not free-text parsing. This eliminates role-name typos by con
 
 **Goal:** the state machine, with no attendance tracking yet.
 
-- [ ] `MeetingLifecycleService`: `start`, `pause`, `resume`, `end`, `cancel`
-- [ ] `start` validates the type, snapshots `expectedMembers` via `guild.members.fetch()`, relies on the index for the single-active-meeting rule
-- [ ] Illegal transitions throw (`COMPLETED → PAUSED`, and so on)
-- [ ] `pauses[]` recorded on pause and resume
-- [ ] `end` sets `endedAt`, `endedBy`, `status`
-- [ ] `cancel` sets `cancelReason`, produces no report
-- [ ] `/start-meeting` detects the caller's voice channel and errors clearly if they are not in one
-- [ ] `/pause-meeting`, `/resume-meeting`, `/end-meeting`, `/cancel-meeting`
-- [ ] `MeetingSweeper` cron: auto-end after 15 minutes empty, hard cap at 12 hours, `endedBy: 'SYSTEM'`, backdated `endedAt`
+- [x] `MeetingLifecycleService`: `start`, `pause`, `resume`, `end`, `cancel`
+- [x] `start` validates the type, snapshots `expectedMembers` via `guild.members.fetch()`, relies on the index for the single-active-meeting rule
+- [x] Illegal transitions throw (`COMPLETED → PAUSED`, and so on)
+- [x] `pauses[]` recorded on pause and resume
+- [x] `end` sets `endedAt`, `endedBy`, `status`
+- [x] `cancel` sets `cancelReason`, produces no report
+- [x] `/start-meeting` detects the caller's voice channel and errors clearly if they are not in one
+- [x] `/pause-meeting`, `/resume-meeting`, `/end-meeting`, `/cancel-meeting`
+- [x] `MeetingSweeper` cron: auto-end after 15 minutes empty, hard cap at 12 hours, `endedBy: 'SYSTEM'`, backdated `endedAt`
 
 **Checkpoint:** every transition works from Discord. Every illegal transition returns a readable error in the channel. A meeting left running with an empty channel is closed by the sweeper within a sweep interval.
 

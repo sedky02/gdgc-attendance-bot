@@ -87,6 +87,15 @@ export class Meeting {
 
   @Prop({ type: MeetingStatsSchema, default: null })
   stats: MeetingStats | null;
+
+  // Interim field for the Phase 3 sweeper's empty-channel heuristic, fed by
+  // the bot's heartbeat polling. Not part of the public contract — Phase 4's
+  // reconciler replaces this with real per-user session data.
+  @Prop({ type: Date, default: null })
+  lastActivityAt: Date | null;
+
+  // Populated by Mongoose via the `timestamps` schema option above, not by @Prop.
+  declare createdAt: Date;
 }
 
 export type MeetingDocument = HydratedDocument<Meeting>;

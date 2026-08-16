@@ -1,11 +1,11 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
+import { CanActivate, ExecutionContext, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Request } from "express";
 import type { Env } from "../../config/env.validation.js";
 
 @Injectable()
 export class ServiceTokenGuard implements CanActivate {
-  constructor(private readonly configService: ConfigService<Env, true>) {}
+  constructor(@Inject(ConfigService) private readonly configService: ConfigService<Env, true>) {}
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import { CreateMeetingTypeDto, ListMeetingTypesQueryDto, UpdateMeetingTypeDto } from "@meeting-system/contracts";
 import { ServiceOnly } from "../common/decorators/service-only.decorator.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
@@ -7,7 +7,7 @@ import { MeetingTypesService } from "./meeting-types.service.js";
 @Controller("meeting-types")
 @ServiceOnly()
 export class MeetingTypesController {
-  constructor(private readonly meetingTypesService: MeetingTypesService) {}
+  constructor(@Inject(MeetingTypesService) private readonly meetingTypesService: MeetingTypesService) {}
 
   @Get()
   list(@Query(new ZodValidationPipe(ListMeetingTypesQueryDto)) query: ListMeetingTypesQueryDto) {

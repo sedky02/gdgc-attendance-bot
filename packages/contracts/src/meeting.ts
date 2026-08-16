@@ -72,8 +72,34 @@ export const CancelMeetingDto = z.object({
 });
 export type CancelMeetingDto = z.infer<typeof CancelMeetingDto>;
 
+export const PauseMeetingDto = z.object({
+  pausedBy: z.string(),
+  observedAt: z.coerce.date(),
+});
+export type PauseMeetingDto = z.infer<typeof PauseMeetingDto>;
+
+export const ResumeMeetingDto = z.object({
+  resumedBy: z.string(),
+  observedAt: z.coerce.date(),
+});
+export type ResumeMeetingDto = z.infer<typeof ResumeMeetingDto>;
+
 export const UpdateMeetingSummaryDto = z.object({
   summary: z.string().max(4000),
   summaryUpdatedBy: z.string(),
 });
 export type UpdateMeetingSummaryDto = z.infer<typeof UpdateMeetingSummaryDto>;
+
+export const ListActiveMeetingsQueryDto = z.object({
+  guildId: z.string(),
+});
+export type ListActiveMeetingsQueryDto = z.infer<typeof ListActiveMeetingsQueryDto>;
+
+// Interim signal until Phase 4's reconciler gives the sweeper real per-user
+// occupancy data. The bot polls each live meeting's voice channel(s) and
+// reports whether anyone (non-bot) is present.
+export const MeetingHeartbeatDto = z.object({
+  isEmpty: z.boolean(),
+  observedAt: z.coerce.date(),
+});
+export type MeetingHeartbeatDto = z.infer<typeof MeetingHeartbeatDto>;

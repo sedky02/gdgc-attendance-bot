@@ -1,8 +1,15 @@
 import {
+  CancelMeetingDto,
   CreateMeetingTypeDto,
+  EndMeetingDto,
+  MeetingSchema,
   MeetingTypeSchema,
+  PauseMeetingDto,
   PingResponseDto,
+  ResumeMeetingDto,
+  StartMeetingDto,
   UpdateMeetingTypeDto,
+  type Meeting,
   type MeetingType,
 } from "@meeting-system/contracts";
 import { z } from "zod";
@@ -101,5 +108,33 @@ export const apiClient = {
 
     archive: async (id: string): Promise<MeetingType> =>
       MeetingTypeSchema.parse(await request<unknown>(`/meeting-types/${id}`, { method: "DELETE" })),
+  },
+
+  meetings: {
+    listActive: async (guildId: string): Promise<Meeting[]> =>
+      z.array(MeetingSchema).parse(await request<unknown>(`/meetings/active?guildId=${encodeURIComponent(guildId)}`)),
+
+    start: async (dto: StartMeetingDto): Promise<Meeting> =>
+      MeetingSchema.parse(await request<unknown>("/meetings", { method: "POST", body: dto })),
+
+    pause: async (id: string, dto: PauseMeetingDto): Promise<Meeting> =>
+      MeetingSchema.parse(await request<unknown>(`/meetings/${id}/pause`, { method: "POST", body: dto })),
+
+    resume: async (id: string, dto: ResumeMeetingDto): Promise<Meeting> =>
+      MeetingSchema.parse(await request<unknown>(`/meetings/${id}/resume`, { method: "POST", body: dto })),
+
+    end: async (id: string, dto: EndMeetingDto): Promise<Meeting> =>
+      MeetingSchema.parse(await request<unknown>(`/meetings/${id}/end`, { method: "POST", body: dto })),
+
+    cancel: async (id: string, dto: CancelMeetingDto): Promise<Meeting> =>
+      MeetingSchema.parse(await request<unknown>(`/meetings/${id}/cancel`, { method: "POST", body: dto })),
+
+    heartbeat: async (id: string, isEmpty: boolean, observedAt: Date): Promise<void> => {
+      await request<unknown>(`/meetings/${id}/heartbeat`, {
+        method: "POST",
+        body: { isEmpty, observedAt },
+        retries: 0,
+      });
+    },
   },
 };
