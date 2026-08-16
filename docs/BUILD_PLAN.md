@@ -93,20 +93,20 @@ The sweeper is not optional. Someone will start a meeting and go home, and the u
 
 The most important phase. Build the resolver and the reconciler together — shipping events alone means Phase 5 is spent cleaning up corrupt data.
 
-- [ ] `AttendanceResolverService.resolvePresence(meetingId, { presentUserIds, observedAt, scope, source })`
-- [ ] Open a session only when no session is open, as one atomic upsert
-- [ ] Close sessions only when `scope: 'FULL'`
-- [ ] Ignore everything while the meeting is `PAUSED`
-- [ ] Discard an `observedAt` that predates the open session's `joinedAt`
-- [ ] Mark attendees with no matching expected role as `expected: false`
-- [ ] `pause` closes all open sessions; `resume` re-opens for current occupants
-- [ ] `POST /internal/voice-events` and `POST /meetings/:id/attendance/sync`
-- [ ] `voice-state-update.ts` filtering bots, unchanged channels, and treating the AFK channel as a departure
-- [ ] Channel moves sent as a single event carrying `from` and `to`
-- [ ] Bounded, per-user ordered `event-queue.ts` in the bot
-- [ ] `reconciler.ts`: every 60s per active meeting, plus on `ready` and `shardResume`
-- [ ] `POST /internal/bootstrap` so the bot can discover active meetings after a restart
-- [ ] `/meeting-status` showing live occupants
+- [x] `AttendanceResolverService.resolvePresence(meetingId, { presentUserIds, observedAt, scope, source })`
+- [x] Open a session only when no session is open, as one atomic upsert
+- [x] Close sessions only when `scope: 'FULL'`
+- [x] Ignore everything while the meeting is `PAUSED`
+- [x] Discard an `observedAt` that predates the open session's `joinedAt`
+- [x] Mark attendees with no matching expected role as `expected: false`
+- [x] `pause` closes all open sessions; `resume` re-opens for current occupants
+- [x] `POST /internal/voice-events` and `POST /meetings/:id/attendance/sync`
+- [x] `voice-state-update.ts` filtering bots, unchanged channels, and treating the AFK channel as a departure
+- [x] Channel moves sent as a single event carrying `from` and `to`
+- [x] Bounded, per-user ordered `event-queue.ts` in the bot
+- [x] `reconciler.ts`: every 60s per active meeting, plus on `ready` and `shardResume`
+- [x] `POST /internal/bootstrap` so the bot can discover active meetings after a restart
+- [x] `/meeting-status` showing live occupants
 
 **Checkpoint:** every scenario in the README's testing section passes. Then verify manually: start a meeting with people in the channel, kill the bot process, have someone leave and someone else join, restart the bot, and confirm the record self-corrects within one sync interval.
 

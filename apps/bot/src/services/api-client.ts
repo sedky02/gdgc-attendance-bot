@@ -1,4 +1,5 @@
 import {
+  AttendanceSchema,
   CancelMeetingDto,
   CreateMeetingTypeDto,
   EndMeetingDto,
@@ -8,7 +9,10 @@ import {
   PingResponseDto,
   ResumeMeetingDto,
   StartMeetingDto,
+  SyncAttendanceDto,
   UpdateMeetingTypeDto,
+  VoiceEventDto,
+  type Attendance,
   type Meeting,
   type MeetingType,
 } from "@meeting-system/contracts";
@@ -129,12 +133,20 @@ export const apiClient = {
     cancel: async (id: string, dto: CancelMeetingDto): Promise<Meeting> =>
       MeetingSchema.parse(await request<unknown>(`/meetings/${id}/cancel`, { method: "POST", body: dto })),
 
-    heartbeat: async (id: string, isEmpty: boolean, observedAt: Date): Promise<void> => {
-      await request<unknown>(`/meetings/${id}/heartbeat`, {
-        method: "POST",
-        body: { isEmpty, observedAt },
-        retries: 0,
-      });
+    sync: async (id: string, dto: SyncAttendanceDto): Promise<void> => {
+      await request<unknown>(`/meetings/${id}/attendance/sync`, { method: "POST", body: dto, retries: 0 });
     },
+
+    attendance: async (id: string): Promise<Attendance[]> =>
+      z.array(AttendanceSchema).parse(await request<unknown>(`/meetings/${id}/attendance`)),
+  },
+
+  internal: {
+    voiceEvent: async (dto: VoiceEventDto): Promise<void> => {
+      await request<unknown>("/internal/voice-events", { method: "POST", body: dto });
+    },
+
+    bootstrap: async (): Promise<Meeting[]> =>
+      z.array(MeetingSchema).parse(await request<unknown>("/internal/bootstrap", { method: "POST" })),
   },
 };

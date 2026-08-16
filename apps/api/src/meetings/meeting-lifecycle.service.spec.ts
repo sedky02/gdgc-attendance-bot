@@ -7,8 +7,10 @@ import { Types } from "mongoose";
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import { MeetingLifecycleService } from "./meeting-lifecycle.service.js";
 import { MeetingTypesService } from "../meeting-types/meeting-types.service.js";
+import { AttendanceResolverService } from "../attendance/attendance-resolver.service.js";
 import { Meeting, MeetingSchema } from "./schemas/meeting.schema.js";
 import { MeetingType, MeetingTypeSchema } from "../meeting-types/schemas/meeting-type.schema.js";
+import { Attendance, AttendanceSchema } from "../attendance/schemas/attendance.schema.js";
 
 describe("MeetingLifecycleService", () => {
   let mongod: MongoMemoryServer;
@@ -16,6 +18,7 @@ describe("MeetingLifecycleService", () => {
   let meetingTypesService: MeetingTypesService;
   let meetingModel: Model<Meeting>;
   let meetingTypeModel: Model<MeetingType>;
+  let attendanceModel: Model<Attendance>;
   let meetingTypeId: string;
 
   beforeAll(async () => {
@@ -27,15 +30,17 @@ describe("MeetingLifecycleService", () => {
         MongooseModule.forFeature([
           { name: Meeting.name, schema: MeetingSchema },
           { name: MeetingType.name, schema: MeetingTypeSchema },
+          { name: Attendance.name, schema: AttendanceSchema },
         ]),
       ],
-      providers: [MeetingLifecycleService, MeetingTypesService],
+      providers: [MeetingLifecycleService, MeetingTypesService, AttendanceResolverService],
     }).compile();
 
     service = moduleRef.get(MeetingLifecycleService);
     meetingTypesService = moduleRef.get(MeetingTypesService);
     meetingModel = moduleRef.get(getModelToken(Meeting.name));
     meetingTypeModel = moduleRef.get(getModelToken(MeetingType.name));
+    attendanceModel = moduleRef.get(getModelToken(Attendance.name));
   });
 
   beforeEach(async () => {
@@ -51,6 +56,7 @@ describe("MeetingLifecycleService", () => {
   afterEach(async () => {
     await meetingModel.deleteMany({});
     await meetingTypeModel.deleteMany({});
+    await attendanceModel.deleteMany({});
   });
 
   afterAll(async () => {
@@ -64,6 +70,7 @@ describe("MeetingLifecycleService", () => {
     voiceChannelIds: ["channel-1"],
     startedBy: "manager-1",
     expectedMembers: [{ discordUserId: "user-1", usernameSnapshot: "aymen", roleIds: ["role-1"] }],
+    presentMembers: [],
     observedAt: new Date("2026-08-16T19:00:00Z"),
     ...overrides,
   });
@@ -74,6 +81,16 @@ describe("MeetingLifecycleService", () => {
 
       expect(meeting.status).toBe("ACTIVE");
       expect(meeting.expectedMembers).toEqual([{ discordUserId: "user-1", usernameSnapshot: "aymen", roleIds: ["role-1"] }]);
+    });
+
+    it("opens sessions for whoever is already present when the meeting starts", async () => {
+      const meeting = await service.start(
+        startDto({ presentMembers: [{ discordUserId: "user-1", usernameSnapshot: "aymen", displayNameSnapshot: "Aymen" }] }),
+      );
+
+      const doc = await attendanceModel.findOne({ meeting: meeting.id, discordUserId: "user-1" });
+      expect(doc?.sessions[0]).toMatchObject({ leftAt: null });
+      expect(doc?.expected).toBe(true);
     });
 
     it("throws NotFoundException for an unknown meeting type", async () => {
@@ -111,7 +128,11 @@ describe("MeetingLifecycleService", () => {
     it("resuming closes the open pause entry", async () => {
       const meeting = await service.start(startDto());
       await service.pause(meeting.id, { pausedBy: "manager-1", observedAt: new Date("2026-08-16T19:30:00Z") });
-      const resumed = await service.resume(meeting.id, { resumedBy: "manager-1", observedAt: new Date("2026-08-16T19:35:00Z") });
+      const resumed = await service.resume(meeting.id, {
+        resumedBy: "manager-1",
+        observedAt: new Date("2026-08-16T19:35:00Z"),
+        presentMembers: [],
+      });
 
       expect(resumed.status).toBe("ACTIVE");
       expect(resumed.pauses).toEqual([
@@ -131,9 +152,45 @@ describe("MeetingLifecycleService", () => {
     it("rejects resuming a meeting that is ACTIVE", async () => {
       const meeting = await service.start(startDto());
 
-      await expect(service.resume(meeting.id, { resumedBy: "manager-1", observedAt: new Date() })).rejects.toBeInstanceOf(
-        ConflictException,
-      );
+      await expect(
+        service.resume(meeting.id, { resumedBy: "manager-1", observedAt: new Date(), presentMembers: [] }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("pausing closes every open session so it never spans the pause", async () => {
+      const meeting = await service.start(startDto());
+      await attendanceModel.create({
+        meeting: meeting.id,
+        discordUserId: "user-1",
+        usernameSnapshot: "aymen",
+        displayNameSnapshot: "Aymen",
+        expected: true,
+        sessions: [{ joinedAt: new Date("2026-08-16T19:00:00Z"), leftAt: null, source: "EVENT" }],
+        manuallyEdited: false,
+        editedBy: null,
+        stats: null,
+      });
+
+      await service.pause(meeting.id, { pausedBy: "manager-1", observedAt: new Date("2026-08-16T19:30:00Z") });
+
+      const doc = await attendanceModel.findOne({ meeting: meeting.id, discordUserId: "user-1" });
+      expect(doc?.sessions[0].leftAt).toEqual(new Date("2026-08-16T19:30:00Z"));
+    });
+
+    it("resuming opens fresh sessions for whoever the bot reports as currently present", async () => {
+      const meeting = await service.start(startDto());
+      await service.pause(meeting.id, { pausedBy: "manager-1", observedAt: new Date("2026-08-16T19:30:00Z") });
+
+      await service.resume(meeting.id, {
+        resumedBy: "manager-1",
+        observedAt: new Date("2026-08-16T19:35:00Z"),
+        presentMembers: [{ discordUserId: "user-2", usernameSnapshot: "sami", displayNameSnapshot: "Sami" }],
+      });
+
+      const doc = await attendanceModel.findOne({ meeting: meeting.id, discordUserId: "user-2" });
+      expect(doc?.sessions.map((s) => ({ joinedAt: s.joinedAt, leftAt: s.leftAt, source: s.source }))).toEqual([
+        { joinedAt: new Date("2026-08-16T19:35:00Z"), leftAt: null, source: "EVENT" },
+      ]);
     });
   });
 
@@ -210,25 +267,45 @@ describe("MeetingLifecycleService", () => {
     });
   });
 
-  describe("heartbeat", () => {
-    it("bumps lastActivityAt when the channel is reported non-empty", async () => {
+  describe("session cleanup on end/cancel", () => {
+    it("end closes any still-open session so no record outlives the meeting", async () => {
       const meeting = await service.start(startDto());
-      const seenAt = new Date("2026-08-16T19:10:00Z");
+      await attendanceModel.create({
+        meeting: meeting.id,
+        discordUserId: "user-1",
+        usernameSnapshot: "aymen",
+        displayNameSnapshot: "Aymen",
+        expected: true,
+        sessions: [{ joinedAt: new Date("2026-08-16T19:00:00Z"), leftAt: null, source: "EVENT" }],
+        manuallyEdited: false,
+        editedBy: null,
+        stats: null,
+      });
 
-      await service.heartbeat(meeting.id, { isEmpty: false, observedAt: seenAt });
+      await service.end(meeting.id, { endedBy: "manager-1", observedAt: new Date("2026-08-16T20:35:00Z") });
 
-      const doc = await meetingModel.findById(meeting.id);
-      expect(doc?.lastActivityAt).toEqual(seenAt);
+      const doc = await attendanceModel.findOne({ meeting: meeting.id, discordUserId: "user-1" });
+      expect(doc?.sessions[0].leftAt).toEqual(new Date("2026-08-16T20:35:00Z"));
     });
 
-    it("does not touch lastActivityAt when the channel is reported empty", async () => {
+    it("cancel closes any still-open session too", async () => {
       const meeting = await service.start(startDto());
-      const before = await meetingModel.findById(meeting.id);
+      await attendanceModel.create({
+        meeting: meeting.id,
+        discordUserId: "user-1",
+        usernameSnapshot: "aymen",
+        displayNameSnapshot: "Aymen",
+        expected: true,
+        sessions: [{ joinedAt: new Date("2026-08-16T19:00:00Z"), leftAt: null, source: "EVENT" }],
+        manuallyEdited: false,
+        editedBy: null,
+        stats: null,
+      });
 
-      await service.heartbeat(meeting.id, { isEmpty: true, observedAt: new Date("2026-08-16T22:00:00Z") });
+      await service.cancel(meeting.id, { cancelledBy: "manager-1", cancelReason: "test", observedAt: new Date("2026-08-16T19:45:00Z") });
 
-      const after = await meetingModel.findById(meeting.id);
-      expect(after?.lastActivityAt).toEqual(before?.lastActivityAt);
+      const doc = await attendanceModel.findOne({ meeting: meeting.id, discordUserId: "user-1" });
+      expect(doc?.sessions[0].leftAt).toEqual(new Date("2026-08-16T19:45:00Z"));
     });
   });
 });

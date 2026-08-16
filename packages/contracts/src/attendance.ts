@@ -1,6 +1,16 @@
 import { z } from "zod";
 import { ResolvePresenceScope, SessionSource } from "./enums.js";
 
+// Only the bot can supply these — Discord is the source of truth for names,
+// and a brand-new Attendance document needs a snapshot the instant it's
+// created, not a later join against data that may no longer exist.
+export const PresentMemberSchema = z.object({
+  discordUserId: z.string(),
+  usernameSnapshot: z.string(),
+  displayNameSnapshot: z.string(),
+});
+export type PresentMember = z.infer<typeof PresentMemberSchema>;
+
 export const SessionSchema = z.object({
   joinedAt: z.coerce.date(),
   leftAt: z.coerce.date().nullable(),
@@ -33,16 +43,16 @@ export const AttendanceSchema = z.object({
 });
 export type Attendance = z.infer<typeof AttendanceSchema>;
 
-export const ResolvePresenceDto = z.object({
-  presentUserIds: z.array(z.string()),
+export const ResolvePresenceParams = z.object({
+  presentMembers: z.array(PresentMemberSchema),
   observedAt: z.coerce.date(),
   scope: ResolvePresenceScope,
   source: SessionSource,
 });
-export type ResolvePresenceDto = z.infer<typeof ResolvePresenceDto>;
+export type ResolvePresenceParams = z.infer<typeof ResolvePresenceParams>;
 
 export const SyncAttendanceDto = z.object({
-  presentUserIds: z.array(z.string()),
+  presentMembers: z.array(PresentMemberSchema),
   observedAt: z.coerce.date(),
 });
 export type SyncAttendanceDto = z.infer<typeof SyncAttendanceDto>;
@@ -64,7 +74,9 @@ export type UpdateAttendanceDto = z.infer<typeof UpdateAttendanceDto>;
 
 export const VoiceEventDto = z.object({
   guildId: z.string(),
-  userId: z.string(),
+  discordUserId: z.string(),
+  usernameSnapshot: z.string(),
+  displayNameSnapshot: z.string(),
   from: z.string().nullable(),
   to: z.string().nullable(),
   occurredAt: z.coerce.date(),

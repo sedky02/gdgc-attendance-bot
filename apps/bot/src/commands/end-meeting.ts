@@ -1,6 +1,6 @@
 import { PermissionFlagsBits, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
 import { apiClient } from "../services/api-client.js";
-import { untrackMeeting } from "../services/meeting-heartbeat.js";
+import { untrackMeeting } from "../services/reconciler.js";
 import { findLiveMeetingForInteraction } from "../utils/find-live-meeting.js";
 import { successEmbed } from "../ui/embeds/success.embed.js";
 import { errorEmbed } from "../ui/embeds/error.embed.js";

@@ -7,9 +7,9 @@ import {
   type ChatInputCommandInteraction,
   type GuildMember,
 } from "discord.js";
-import type { ExpectedMember, MeetingType } from "@meeting-system/contracts";
+import type { ExpectedMember, MeetingType, PresentMember } from "@meeting-system/contracts";
 import { apiClient } from "../services/api-client.js";
-import { trackMeeting } from "../services/meeting-heartbeat.js";
+import { trackMeeting } from "../services/reconciler.js";
 import { successEmbed } from "../ui/embeds/success.embed.js";
 import { errorEmbed } from "../ui/embeds/error.embed.js";
 
@@ -67,6 +67,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     await typeSelect.deferUpdate();
 
     const expectedMembers = await snapshotExpectedMembers(interaction.guild, meetingType);
+    const presentMembers: PresentMember[] = voiceChannel.members
+      .filter((member) => !member.user.bot)
+      .map((member) => ({
+        discordUserId: member.id,
+        usernameSnapshot: member.user.username,
+        displayNameSnapshot: member.displayName,
+      }));
 
     const meeting = await apiClient.meetings.start({
       guildId: interaction.guildId,
@@ -74,6 +81,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       voiceChannelIds: [voiceChannel.id],
       startedBy: interaction.user.id,
       expectedMembers,
+      presentMembers,
       observedAt: new Date(),
     });
 

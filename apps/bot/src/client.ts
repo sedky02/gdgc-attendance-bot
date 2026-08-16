@@ -7,6 +7,7 @@ import * as pauseMeetingCommand from "./commands/pause-meeting.js";
 import * as resumeMeetingCommand from "./commands/resume-meeting.js";
 import * as endMeetingCommand from "./commands/end-meeting.js";
 import * as cancelMeetingCommand from "./commands/cancel-meeting.js";
+import * as meetingStatusCommand from "./commands/meeting-status.js";
 
 export interface Command {
   data: SlashCommandBuilder;
@@ -23,6 +24,7 @@ export const commands = new Collection<string, Command>(
     resumeMeetingCommand,
     endMeetingCommand,
     cancelMeetingCommand,
+    meetingStatusCommand,
   ].map((command) => [command.data.name, command]),
 );
 

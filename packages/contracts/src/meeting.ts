@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MeetingStatus } from "./enums.js";
+import { PresentMemberSchema } from "./attendance.js";
 
 export const MeetingPauseSchema = z.object({
   pausedAt: z.coerce.date(),
@@ -55,6 +56,10 @@ export const StartMeetingDto = z.object({
   voiceChannelIds: z.array(z.string()).min(1),
   startedBy: z.string(),
   expectedMembers: z.array(ExpectedMemberSchema),
+  // Who's actually in the channel the instant the meeting starts — sessions
+  // are opened for these people immediately. Distinct from expectedMembers,
+  // which is who *should* attend based on role, frozen forever either way.
+  presentMembers: z.array(PresentMemberSchema),
   observedAt: z.coerce.date(),
 });
 export type StartMeetingDto = z.infer<typeof StartMeetingDto>;
@@ -81,6 +86,9 @@ export type PauseMeetingDto = z.infer<typeof PauseMeetingDto>;
 export const ResumeMeetingDto = z.object({
   resumedBy: z.string(),
   observedAt: z.coerce.date(),
+  // Whoever the bot finds in the voice channel(s) at the moment of resuming —
+  // sessions are opened for exactly these people, nobody else.
+  presentMembers: z.array(PresentMemberSchema),
 });
 export type ResumeMeetingDto = z.infer<typeof ResumeMeetingDto>;
 
@@ -94,12 +102,3 @@ export const ListActiveMeetingsQueryDto = z.object({
   guildId: z.string(),
 });
 export type ListActiveMeetingsQueryDto = z.infer<typeof ListActiveMeetingsQueryDto>;
-
-// Interim signal until Phase 4's reconciler gives the sweeper real per-user
-// occupancy data. The bot polls each live meeting's voice channel(s) and
-// reports whether anyone (non-bot) is present.
-export const MeetingHeartbeatDto = z.object({
-  isEmpty: z.boolean(),
-  observedAt: z.coerce.date(),
-});
-export type MeetingHeartbeatDto = z.infer<typeof MeetingHeartbeatDto>;

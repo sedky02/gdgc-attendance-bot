@@ -3,7 +3,6 @@ import {
   CancelMeetingDto,
   EndMeetingDto,
   ListActiveMeetingsQueryDto,
-  MeetingHeartbeatDto,
   PauseMeetingDto,
   ResumeMeetingDto,
   StartMeetingDto,
@@ -50,11 +49,5 @@ export class MeetingsController {
   @Post(":id/cancel")
   cancel(@Param("id") id: string, @Body(new ZodValidationPipe(CancelMeetingDto)) dto: CancelMeetingDto) {
     return this.meetingLifecycleService.cancel(id, dto);
-  }
-
-  @Post(":id/heartbeat")
-  async heartbeat(@Param("id") id: string, @Body(new ZodValidationPipe(MeetingHeartbeatDto)) dto: MeetingHeartbeatDto) {
-    await this.meetingLifecycleService.heartbeat(id, dto);
-    return { acknowledged: true };
   }
 }
