@@ -1,13 +1,18 @@
 import { Controller, Get } from "@nestjs/common";
+import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { InjectConnection } from "@nestjs/mongoose";
 import type { Connection } from "mongoose";
 import type { HealthResponseDto } from "@meeting-system/contracts";
+import { ApiContractResponse } from "../openapi/api-contract.decorator.js";
 
+@ApiTags("health")
 @Controller("health")
 export class HealthController {
   constructor(@InjectConnection() private readonly connection: Connection) {}
 
   @Get()
+  @ApiOperation({ summary: "Liveness and Mongo connectivity", description: "Unauthenticated, and served outside the `api/v1` prefix." })
+  @ApiContractResponse(200, "HealthResponseDto")
   check(): HealthResponseDto {
     return {
       status: "ok",
