@@ -17,6 +17,7 @@ import {
   MeetingReportSchema,
   MeetingSchema,
   MeetingStatsSchema,
+  MeetingStatus,
   MeetingTypeRoleSchema,
   MeetingTypeSchema,
   MeetingsPageSchema,
@@ -25,6 +26,7 @@ import {
   PresentMemberSchema,
   ResumeMeetingDto,
   SessionSchema,
+  SessionSource,
   StartMeetingDto,
   SyncAttendanceDto,
   UpdateAttendanceDto,
@@ -43,6 +45,13 @@ import {
  * re-declares a shape, and there is no parallel class DTO to drift from it.
  */
 export const CONTRACT_SCHEMAS = {
+  // Enums. Registered in their own right because they appear in more than one
+  // schema — without an entry here the second use $refs into wherever the
+  // first one happened to land (`Meeting/properties/status`), which is
+  // technically resolvable and completely unreadable.
+  MeetingStatus,
+  SessionSource,
+
   // Meeting types
   MeetingType: MeetingTypeSchema,
   MeetingTypeRole: MeetingTypeRoleSchema,

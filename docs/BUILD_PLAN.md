@@ -155,6 +155,7 @@ Manual correction is what makes the system trustworthy. One night of a downed bo
 
 - [ ] Rate limiting on `/internal/*`
 - [ ] Locked-down CORS
+- [x] OpenAPI/Swagger at `/docs`, schemas generated from `packages/contracts`, off in production by default
 - [ ] Structured logs with `meetingId` correlation throughout
 - [ ] Sentry on all three apps
 - [ ] Graceful shutdown: bot flushes the event queue before exiting

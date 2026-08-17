@@ -138,6 +138,7 @@ Both paths converge on the same resolver, and the resolver is idempotent. A dupl
 | UI | Tailwind + shadcn/ui | |
 | Data fetching | TanStack Query | Polling for live meetings comes almost free |
 | Validation | Zod, shared via `packages/contracts` | One schema drives API DTOs and dashboard forms |
+| API docs | `@nestjs/swagger` + `zod-to-json-schema` | OpenAPI generated from the same Zod schemas, no class DTOs |
 | Auth | Auth.js (Discord provider) + JWT; service token for the bot | |
 | Scheduling | `@nestjs/schedule` | Stale-meeting sweeper. No Redis in the MVP |
 | Logging | pino, with `meetingId` correlation | |
@@ -356,6 +357,10 @@ Ahmed     absent
 
 All routes are prefixed `/api/v1`. Every route is scoped to a guild.
 
+Interactive docs are served at **`/docs`**, with the raw OpenAPI 3 document at **`/docs/openapi.json`**. Both sit outside the version prefix, alongside `/health`. They are on by default and off when `NODE_ENV=production`, unless `SWAGGER_ENABLED` says otherwise.
+
+The request and response schemas are generated from the Zod schemas in `packages/contracts` at boot — there are no hand-written class DTOs to drift out of sync. Adding a contract to `apps/api/src/openapi/contract-schemas.ts` is what makes it referenceable from a route.
+
 ### Meeting types
 
 ```
@@ -550,6 +555,7 @@ BOT_SERVICE_TOKEN=           # openssl rand -hex 32, must match the bot
 DISCORD_CLIENT_ID=
 DISCORD_CLIENT_SECRET=
 CORS_ORIGIN=http://localhost:3000
+SWAGGER_ENABLED=             # "true" or "false"; defaults to true unless NODE_ENV=production
 ```
 
 **`apps/bot/.env`** — note the absence of a database URI
