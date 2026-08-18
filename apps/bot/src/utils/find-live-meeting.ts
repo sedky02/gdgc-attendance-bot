@@ -8,11 +8,12 @@ import {
 } from "discord.js";
 import type { Meeting } from "@meeting-system/contracts";
 import { apiClient } from "../services/api-client.js";
+import { DEFAULT_SELECT_TIMEOUT_MS } from "../ui/constants.js";
+import { replyGuildOnlyError } from "./interaction-guards.js";
 
 type ResolvableInteraction = ChatInputCommandInteraction | ModalSubmitInteraction;
 
 const SELECT_ID = "find-live-meeting-select";
-const SELECT_TIMEOUT_MS = 60 * 1000;
 
 /**
  * Resolves which meeting a lifecycle command (/pause, /resume, /end, /cancel)
@@ -30,7 +31,7 @@ export async function findLiveMeetingForInteraction(
   requiredStatuses: readonly Meeting["status"][],
 ): Promise<Meeting | null> {
   if (!interaction.inGuild()) {
-    await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
+    await replyGuildOnlyError(interaction);
     return null;
   }
 
@@ -69,7 +70,7 @@ export async function findLiveMeetingForInteraction(
     const select = await promptMessage.awaitMessageComponent({
       filter: (i) => i.customId === SELECT_ID && i.user.id === interaction.user.id,
       componentType: ComponentType.StringSelect,
-      time: SELECT_TIMEOUT_MS,
+      time: DEFAULT_SELECT_TIMEOUT_MS,
     });
 
     const chosen = candidates.find((meeting) => meeting.id === select.values[0]);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PermissionFlagsBits } from "discord.js";
-import { data } from "./resume-meeting.js";
+import { data } from "./index.js";
 
 describe("/resume-meeting command", () => {
   it("registers as a slash command named resume-meeting", () => {

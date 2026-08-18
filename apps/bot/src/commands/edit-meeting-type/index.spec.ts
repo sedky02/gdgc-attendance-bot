@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { PermissionFlagsBits } from "discord.js";
-import { data } from "./pause-meeting.js";
+import { data } from "./index.js";
 
-describe("/pause-meeting command", () => {
-  it("registers as a slash command named pause-meeting", () => {
-    expect(data.toJSON().name).toBe("pause-meeting");
+describe("/edit-meeting-type command", () => {
+  it("registers as a slash command named edit-meeting-type", () => {
+    expect(data.toJSON().name).toBe("edit-meeting-type");
   });
 
   it("is gated to members who can manage events", () => {

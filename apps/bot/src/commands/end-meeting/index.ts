@@ -1,9 +1,9 @@
 import { PermissionFlagsBits, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
-import { apiClient } from "../services/api-client.js";
-import { untrackMeeting } from "../services/reconciler.js";
-import { findLiveMeetingForInteraction } from "../utils/find-live-meeting.js";
-import { reportEmbed } from "../ui/embeds/report.embed.js";
-import { errorEmbed } from "../ui/embeds/error.embed.js";
+import { apiClient } from "../../services/api-client.js";
+import { untrackMeeting } from "../../services/reconciler.js";
+import { findLiveMeetingForInteraction } from "../../utils/find-live-meeting.js";
+import { reportEmbed } from "../../ui/embeds/report.embed.js";
+import { replyWithError } from "../../ui/reply-error.js";
 
 export const data = new SlashCommandBuilder()
   .setName("end-meeting")
@@ -25,7 +25,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     await interaction.editReply({ content: null, embeds: [reportEmbed(meetingType.name, report)], components: [] });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Something went wrong.";
-    await interaction.editReply({ content: null, embeds: [errorEmbed(message)], components: [] });
+    await replyWithError(interaction, error, { mode: "editReply", fallbackMessage: "Something went wrong." });
   }
 }

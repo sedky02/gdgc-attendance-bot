@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
-import { apiClient } from "../services/api-client.js";
-import { findLiveMeetingForInteraction } from "../utils/find-live-meeting.js";
-import { successEmbed } from "../ui/embeds/success.embed.js";
+import { apiClient } from "../../services/api-client.js";
+import { findLiveMeetingForInteraction } from "../../utils/find-live-meeting.js";
+import { successEmbed } from "../../ui/embeds/success.embed.js";
 
 export const data = new SlashCommandBuilder()
   .setName("meeting-status")

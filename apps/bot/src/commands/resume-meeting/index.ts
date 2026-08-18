@@ -1,10 +1,10 @@
 import { PermissionFlagsBits, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
-import { apiClient } from "../services/api-client.js";
-import { trackMeeting } from "../services/reconciler.js";
-import { findLiveMeetingForInteraction } from "../utils/find-live-meeting.js";
-import { getPresentMembers } from "../utils/present-members.js";
-import { successEmbed } from "../ui/embeds/success.embed.js";
-import { errorEmbed } from "../ui/embeds/error.embed.js";
+import { apiClient } from "../../services/api-client.js";
+import { trackMeeting } from "../../services/reconciler.js";
+import { findLiveMeetingForInteraction } from "../../utils/find-live-meeting.js";
+import { getPresentMembers } from "../../utils/present-members.js";
+import { successEmbed } from "../../ui/embeds/success.embed.js";
+import { replyWithError } from "../../ui/reply-error.js";
 
 export const data = new SlashCommandBuilder()
   .setName("resume-meeting")
@@ -26,7 +26,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     trackMeeting(resumed.id, resumed.guildId, resumed.voiceChannelIds);
     await interaction.editReply({ content: null, embeds: [successEmbed("Meeting resumed")], components: [] });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Something went wrong.";
-    await interaction.editReply({ content: null, embeds: [errorEmbed(message)], components: [] });
+    await replyWithError(interaction, error, { mode: "editReply", fallbackMessage: "Something went wrong." });
   }
 }

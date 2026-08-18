@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { data } from "./meeting-status.js";
+import { data } from "./index.js";
 
 describe("/meeting-status command", () => {
   it("registers as a slash command named meeting-status", () => {

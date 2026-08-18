@@ -449,27 +449,33 @@ meeting-system/
 │   │       ├── index.ts
 │   │       ├── client.ts
 │   │       ├── deploy-commands.ts
-│   │       ├── commands/
-│   │       │   ├── configure-meeting.ts
-│   │       │   ├── edit-meeting-type.ts
-│   │       │   ├── start-meeting.ts
-│   │       │   ├── pause-meeting.ts
-│   │       │   ├── resume-meeting.ts
-│   │       │   ├── end-meeting.ts
-│   │       │   ├── cancel-meeting.ts
-│   │       │   └── meeting-status.ts
+│   │       ├── commands/                # one folder per command
+│   │       │   ├── configure-meeting/{index.ts,constants.ts}
+│   │       │   ├── edit-meeting-type/{index.ts,constants.ts}
+│   │       │   ├── start-meeting/{index.ts,constants.ts}
+│   │       │   ├── pause-meeting/index.ts
+│   │       │   ├── resume-meeting/index.ts
+│   │       │   ├── end-meeting/index.ts
+│   │       │   ├── cancel-meeting/{index.ts,constants.ts}
+│   │       │   ├── meeting-status/index.ts
+│   │       │   └── ping/index.ts
 │   │       ├── events/
 │   │       │   ├── ready.ts
 │   │       │   ├── interaction-create.ts
 │   │       │   └── voice-state-update.ts
 │   │       ├── services/
-│   │       │   ├── api-client.ts        # typed, retry with backoff
+│   │       │   ├── api-client.ts        # thin facade over services/api/
+│   │       │   ├── api/                 # per-resource clients + shared http-client
 │   │       │   ├── reconciler.ts        # 60s roster sync
 │   │       │   └── event-queue.ts       # bounded, ordered per user
+│   │       ├── validation/
+│   │       │   └── guards.ts            # shared precondition-reply helpers
 │   │       ├── ui/
 │   │       │   ├── embeds/
-│   │       │   ├── modals/
-│   │       │   └── selects/
+│   │       │   ├── modals/              # shared single-field modal builder
+│   │       │   ├── selects/             # shared select-menu prompts
+│   │       │   ├── constants.ts         # shared UI timeouts
+│   │       │   └── reply-error.ts       # shared error-reply helper
 │   │       └── utils/
 │   │
 │   └── dashboard/

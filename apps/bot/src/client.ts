@@ -1,13 +1,13 @@
 import { Client, Collection, GatewayIntentBits, type ChatInputCommandInteraction, type SlashCommandBuilder } from "discord.js";
-import * as pingCommand from "./commands/ping.js";
-import * as configureMeetingCommand from "./commands/configure-meeting.js";
-import * as editMeetingTypeCommand from "./commands/edit-meeting-type.js";
-import * as startMeetingCommand from "./commands/start-meeting.js";
-import * as pauseMeetingCommand from "./commands/pause-meeting.js";
-import * as resumeMeetingCommand from "./commands/resume-meeting.js";
-import * as endMeetingCommand from "./commands/end-meeting.js";
-import * as cancelMeetingCommand from "./commands/cancel-meeting.js";
-import * as meetingStatusCommand from "./commands/meeting-status.js";
+import * as pingCommand from "./commands/ping/index.js";
+import * as configureMeetingCommand from "./commands/configure-meeting/index.js";
+import * as editMeetingTypeCommand from "./commands/edit-meeting-type/index.js";
+import * as startMeetingCommand from "./commands/start-meeting/index.js";
+import * as pauseMeetingCommand from "./commands/pause-meeting/index.js";
+import * as resumeMeetingCommand from "./commands/resume-meeting/index.js";
+import * as endMeetingCommand from "./commands/end-meeting/index.js";
+import * as cancelMeetingCommand from "./commands/cancel-meeting/index.js";
+import * as meetingStatusCommand from "./commands/meeting-status/index.js";
 
 export interface Command {
   data: SlashCommandBuilder;

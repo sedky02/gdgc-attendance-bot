@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PermissionFlagsBits } from "discord.js";
-import { data } from "./cancel-meeting.js";
+import { data } from "./index.js";
 
 describe("/cancel-meeting command", () => {
   it("registers as a slash command named cancel-meeting", () => {

@@ -1,21 +1,19 @@
 import {
-  ActionRowBuilder,
-  ComponentType,
   MessageFlags,
   PermissionFlagsBits,
   SlashCommandBuilder,
-  StringSelectMenuBuilder,
   type ChatInputCommandInteraction,
   type GuildMember,
 } from "discord.js";
 import type { ExpectedMember, MeetingType, PresentMember } from "@meeting-system/contracts";
-import { apiClient } from "../services/api-client.js";
-import { trackMeeting } from "../services/reconciler.js";
-import { successEmbed } from "../ui/embeds/success.embed.js";
-import { errorEmbed } from "../ui/embeds/error.embed.js";
-
-const TYPE_SELECT_ID = "start-meeting-type-select";
-const SELECT_TIMEOUT_MS = 60 * 1000;
+import { apiClient } from "../../services/api-client.js";
+import { trackMeeting } from "../../services/reconciler.js";
+import { successEmbed } from "../../ui/embeds/success.embed.js";
+import { replyWithError } from "../../ui/reply-error.js";
+import { promptMeetingTypeSelect } from "../../ui/selects/meeting-type-select-prompt.js";
+import { DEFAULT_SELECT_TIMEOUT_MS } from "../../ui/constants.js";
+import { replyGuildOnlyError, replyNoMeetingTypesError, replyNotInVoiceChannelError } from "../../utils/interaction-guards.js";
+import { TYPE_SELECT_ID } from "./constants.js";
 
 export const data = new SlashCommandBuilder()
   .setName("start-meeting")
@@ -24,13 +22,13 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: ChatInputCommandInteraction) {
   if (!interaction.inCachedGuild()) {
-    await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
+    await replyGuildOnlyError(interaction);
     return;
   }
 
   const voiceChannel = interaction.member.voice.channel;
   if (!voiceChannel) {
-    await interaction.reply({ content: "You need to be in a voice channel to start a meeting.", flags: MessageFlags.Ephemeral });
+    await replyNotInVoiceChannelError(interaction);
     return;
   }
 
@@ -38,25 +36,16 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
   const meetingTypes = await apiClient.meetingTypes.list(interaction.guildId, false);
   if (meetingTypes.length === 0) {
-    await interaction.editReply("No meeting types configured yet — run /configure-meeting first.");
+    await replyNoMeetingTypesError(interaction);
     return;
   }
 
-  const typeSelectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId(TYPE_SELECT_ID)
-      .setPlaceholder("Select the type of meeting to start")
-      .addOptions(meetingTypes.map((type) => ({ label: type.name, value: type.id }))),
-  );
-
-  await interaction.editReply({ content: "What kind of meeting is this?", components: [typeSelectRow] });
-  const promptMessage = await interaction.fetchReply();
-
   try {
-    const typeSelect = await promptMessage.awaitMessageComponent({
-      filter: (i) => i.customId === TYPE_SELECT_ID && i.user.id === interaction.user.id,
-      componentType: ComponentType.StringSelect,
-      time: SELECT_TIMEOUT_MS,
+    const typeSelect = await promptMeetingTypeSelect(interaction, meetingTypes, {
+      customId: TYPE_SELECT_ID,
+      content: "What kind of meeting is this?",
+      placeholder: "Select the type of meeting to start",
+      timeoutMs: DEFAULT_SELECT_TIMEOUT_MS,
     });
 
     const meetingType = meetingTypes.find((type) => type.id === typeSelect.values[0]);
@@ -99,8 +88,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       components: [],
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "The request timed out.";
-    await interaction.editReply({ content: null, embeds: [errorEmbed(message)], components: [] }).catch(() => undefined);
+    await replyWithError(interaction, error, { mode: "editReply", swallow: true, fallbackMessage: "The request timed out." });
   }
 }
 
