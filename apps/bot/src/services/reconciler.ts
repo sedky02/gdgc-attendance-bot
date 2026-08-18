@@ -41,7 +41,7 @@ export async function reconcileAll(): Promise<void> {
       const guild = await client?.guilds.fetch(meeting.guildId).catch(() => null);
       if (!guild) continue;
       const presentMembers = await getPresentMembers(guild, meeting.voiceChannelIds);
-      await apiClient.meetings.sync(meetingId, { presentMembers, observedAt });
+      await apiClient.meetings.syncAttendance(meetingId, { presentMembers, observedAt });
     } catch (error) {
       logger.warn({ err: error, meetingId }, "Reconciler sync failed");
     }

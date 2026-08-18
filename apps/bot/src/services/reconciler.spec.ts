@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./api-client.js", () => ({
   apiClient: {
-    meetings: { sync: vi.fn().mockResolvedValue(undefined) },
+    meetings: { syncAttendance: vi.fn().mockResolvedValue(undefined) },
     internal: { bootstrap: vi.fn().mockResolvedValue([]) },
   },
 }));
@@ -36,7 +36,7 @@ function fakeClient(occupantCount: number, guildIds: string[] = ["guild-1"]) {
 describe("reconciler", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.mocked(apiClient.meetings.sync).mockClear();
+    vi.mocked(apiClient.meetings.syncAttendance).mockClear();
     vi.mocked(apiClient.internal.bootstrap).mockClear();
   });
 
@@ -52,7 +52,7 @@ describe("reconciler", () => {
 
     await vi.advanceTimersByTimeAsync(60_000);
 
-    expect(apiClient.meetings.sync).toHaveBeenCalledWith(
+    expect(apiClient.meetings.syncAttendance).toHaveBeenCalledWith(
       "meeting-1",
       expect.objectContaining({
         presentMembers: [
@@ -70,7 +70,7 @@ describe("reconciler", () => {
 
     await vi.advanceTimersByTimeAsync(120_000);
 
-    expect(apiClient.meetings.sync).not.toHaveBeenCalled();
+    expect(apiClient.meetings.syncAttendance).not.toHaveBeenCalled();
   });
 
   it("reconcileAll can be invoked directly (used by bootstrap for an immediate sync)", async () => {
@@ -79,7 +79,7 @@ describe("reconciler", () => {
 
     await reconcileAll();
 
-    expect(apiClient.meetings.sync).toHaveBeenCalledTimes(1);
+    expect(apiClient.meetings.syncAttendance).toHaveBeenCalledTimes(1);
   });
 
   describe("bootstrap", () => {
@@ -93,8 +93,8 @@ describe("reconciler", () => {
       initReconciler(fakeClient(0, ["guild-1"]));
       await bootstrap();
 
-      expect(apiClient.meetings.sync).toHaveBeenCalledTimes(1);
-      expect(apiClient.meetings.sync).toHaveBeenCalledWith("meeting-1", expect.anything());
+      expect(apiClient.meetings.syncAttendance).toHaveBeenCalledTimes(1);
+      expect(apiClient.meetings.syncAttendance).toHaveBeenCalledWith("meeting-1", expect.anything());
 
       untrackMeeting("meeting-3");
     });

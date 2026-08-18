@@ -19,7 +19,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     untrackMeeting(meeting.id);
 
     const [report, meetingType] = await Promise.all([
-      apiClient.meetings.report(meeting.id),
+      apiClient.meetings.getReport(meeting.id),
       apiClient.meetingTypes.get(meeting.meetingType),
     ]);
 

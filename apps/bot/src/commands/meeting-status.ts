@@ -11,7 +11,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const meeting = await findLiveMeetingForInteraction(interaction, ["ACTIVE", "PAUSED"]);
   if (!meeting) return;
 
-  const attendance = await apiClient.meetings.attendance(meeting.id);
+  const attendance = await apiClient.meetings.getAttendance(meeting.id);
   const present = attendance.filter((a) => a.sessions.some((session) => session.leftAt === null));
 
   const description =
