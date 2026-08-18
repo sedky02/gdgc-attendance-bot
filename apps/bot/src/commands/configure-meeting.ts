@@ -57,8 +57,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const roleSelectRow = new ActionRowBuilder<RoleSelectMenuBuilder>().addComponents(
       new RoleSelectMenuBuilder()
         .setCustomId(ROLE_SELECT_ID)
-        .setPlaceholder("Select the roles expected to attend (optional)")
-        .setMinValues(0)
+        .setPlaceholder("Select the roles expected to attend (at least 1 role)")
+        .setMinValues(1)
         .setMaxValues(25),
     );
 
@@ -89,9 +89,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       embeds: [
         successEmbed(
           `Created "${meetingType.name}"`,
-          meetingType.roles.length > 0
-            ? `Expected roles: ${meetingType.roles.map((r) => r.nameSnapshot).join(", ")}`
-            : "No expected roles set — anyone who attends counts as expected.",
+          `Expected roles: ${meetingType.roles.map((r) => r.nameSnapshot).join(", ")}`
         ),
       ],
       components: [],

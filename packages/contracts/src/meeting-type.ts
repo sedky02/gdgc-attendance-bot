@@ -10,7 +10,7 @@ export const MeetingTypeSchema = z.object({
   id: z.string(),
   guildId: z.string(),
   name: z.string().min(1).max(100),
-  roles: z.array(MeetingTypeRoleSchema),
+  roles: z.array(MeetingTypeRoleSchema).min(1),
   createdBy: z.string(),
   archived: z.boolean(),
   createdAt: z.coerce.date(),
@@ -21,14 +21,14 @@ export type MeetingType = z.infer<typeof MeetingTypeSchema>;
 export const CreateMeetingTypeDto = z.object({
   guildId: z.string(),
   name: z.string().min(1).max(100),
-  roles: z.array(MeetingTypeRoleSchema),
+  roles: z.array(MeetingTypeRoleSchema).min(1),
   createdBy: z.string(),
 });
 export type CreateMeetingTypeDto = z.infer<typeof CreateMeetingTypeDto>;
 
 export const UpdateMeetingTypeDto = z.object({
   name: z.string().min(1).max(100).optional(),
-  roles: z.array(MeetingTypeRoleSchema).optional(),
+  roles: z.array(MeetingTypeRoleSchema).min(1).optional(),
 });
 export type UpdateMeetingTypeDto = z.infer<typeof UpdateMeetingTypeDto>;
 
