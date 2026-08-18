@@ -1,5 +1,5 @@
 import {
-  ActionRowBuilder,
+  LabelBuilder,
   MessageFlags,
   ModalBuilder,
   PermissionFlagsBits,
@@ -32,11 +32,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const modal = new ModalBuilder()
     .setCustomId(`cancel-meeting-${interaction.id}`)
     .setTitle("Cancel meeting")
-    .addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
+    .addLabelComponents(
+      new LabelBuilder().setLabel("Reason").setTextInputComponent(
         new TextInputBuilder()
           .setCustomId(REASON_INPUT_ID)
-          .setLabel("Reason")
           .setStyle(TextInputStyle.Paragraph)
           .setMaxLength(500)
           .setRequired(true),

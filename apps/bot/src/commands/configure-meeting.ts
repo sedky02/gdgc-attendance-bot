@@ -1,6 +1,7 @@
 import {
   ActionRowBuilder,
   ComponentType,
+  LabelBuilder,
   MessageFlags,
   ModalBuilder,
   PermissionFlagsBits,
@@ -33,11 +34,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const modal = new ModalBuilder()
     .setCustomId(`configure-meeting-${interaction.id}`)
     .setTitle("New meeting type")
-    .addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
+    .addLabelComponents(
+      new LabelBuilder().setLabel("Name").setTextInputComponent(
         new TextInputBuilder()
           .setCustomId(NAME_INPUT_ID)
-          .setLabel("Name")
           .setStyle(TextInputStyle.Short)
           .setMaxLength(100)
           .setRequired(true),
