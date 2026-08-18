@@ -1,6 +1,7 @@
 import {
   ActionRowBuilder,
   ComponentType,
+  MessageFlags,
   ModalBuilder,
   PermissionFlagsBits,
   RoleSelectMenuBuilder,
@@ -25,7 +26,7 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: ChatInputCommandInteraction) {
   if (!interaction.inGuild()) {
-    await interaction.reply({ content: "This command can only be used in a server.", ephemeral: true });
+    await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -64,7 +65,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     await modalSubmit.reply({
       content: `Roles expected for **${name}**:`,
       components: [roleSelectRow],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     const promptMessage = await modalSubmit.fetchReply();
 
@@ -97,6 +98,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "The request timed out.";
-    await interaction.followUp({ embeds: [errorEmbed(message)], ephemeral: true }).catch(() => undefined);
+    await interaction.followUp({ embeds: [errorEmbed(message)], flags: MessageFlags.Ephemeral }).catch(() => undefined);
   }
 }

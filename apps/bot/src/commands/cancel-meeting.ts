@@ -1,5 +1,6 @@
 import {
   ActionRowBuilder,
+  MessageFlags,
   ModalBuilder,
   PermissionFlagsBits,
   SlashCommandBuilder,
@@ -24,7 +25,7 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: ChatInputCommandInteraction) {
   if (!interaction.inGuild()) {
-    await interaction.reply({ content: "This command can only be used in a server.", ephemeral: true });
+    await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -73,7 +74,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     if (modalSubmit.deferred || modalSubmit.replied) {
       await modalSubmit.editReply({ content: null, embeds: [errorEmbed(message)], components: [] }).catch(() => undefined);
     } else {
-      await modalSubmit.reply({ embeds: [errorEmbed(message)], ephemeral: true }).catch(() => undefined);
+      await modalSubmit.reply({ embeds: [errorEmbed(message)], flags: MessageFlags.Ephemeral }).catch(() => undefined);
     }
   }
 }

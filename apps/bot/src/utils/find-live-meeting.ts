@@ -1,6 +1,7 @@
 import {
   ActionRowBuilder,
   ComponentType,
+  MessageFlags,
   StringSelectMenuBuilder,
   type ChatInputCommandInteraction,
   type ModalSubmitInteraction,
@@ -29,11 +30,11 @@ export async function findLiveMeetingForInteraction(
   requiredStatuses: readonly Meeting["status"][],
 ): Promise<Meeting | null> {
   if (!interaction.inGuild()) {
-    await interaction.reply({ content: "This command can only be used in a server.", ephemeral: true });
+    await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
     return null;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const liveMeetings = await apiClient.meetings.listActive(interaction.guildId);
   const candidates = liveMeetings.filter((meeting) => requiredStatuses.includes(meeting.status));

@@ -1,4 +1,4 @@
-import type { Client } from "discord.js";
+import { MessageFlags, type Client } from "discord.js";
 import { commands } from "../client.js";
 import { logger } from "../logger.js";
 
@@ -15,9 +15,9 @@ export function registerInteractionCreateEvent(client: Client) {
       logger.error({ err: error, command: interaction.commandName }, "Command execution failed");
       const errorMessage = error instanceof Error ? error.message : "Something went wrong.";
       if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({ content: errorMessage, ephemeral: true });
+        await interaction.followUp({ content: errorMessage, flags: MessageFlags.Ephemeral });
       } else {
-        await interaction.reply({ content: errorMessage, ephemeral: true });
+        await interaction.reply({ content: errorMessage, flags: MessageFlags.Ephemeral });
       }
     }
   });
