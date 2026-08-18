@@ -636,18 +636,38 @@ You cannot reproduce "the bot crashed at 19:37" by hand, repeatedly, at 2am. Wri
 
 ## Deployment
 
-The bot and API are long-running processes and cannot go on Vercel.
+The bot and API are long-running processes and cannot go on Vercel — the bot holds a persistent Discord gateway connection, and the API runs an in-process cron (`MeetingSweeperService`) that needs a continuously-running process, not a serverless function that spins down between requests.
 
 | Component | Target |
 |---|---|
-| API | Railway or Fly.io, Docker |
-| Bot | Railway or Fly.io, Docker, single instance |
+| API | Any Docker host with an always-on process — this repo's `infra/` targets a single VM (e.g. a cloud "Always Free" tier) |
+| Bot | Same host as the API, single instance |
 | Dashboard | Vercel |
 | Database | MongoDB Atlas free tier |
 
-Run exactly one bot instance. Two instances mean duplicate events and two reconcilers fighting each other. Sharding is not needed below 2,500 guilds and would require moving the reconciler behind a lock.
+`infra/Dockerfile.api` and `infra/Dockerfile.bot` build each app via the standard Turborepo-prune pattern (`turbo prune --docker` extracts just the source and package.json files that app needs, including `packages/contracts`). `infra/docker-compose.prod.yml` runs both, plus a Caddy reverse proxy that gets the API a free automatic TLS certificate — required because the dashboard's client-side mutation components call the API directly from the browser, so once the dashboard is on HTTPS (Vercel), the API must be too or the browser blocks it as mixed content.
 
-Before going live: set a strong `BOT_SERVICE_TOKEN`, restrict `CORS_ORIGIN`, enable Atlas IP allowlisting, and register commands globally.
+**One-time setup on the VM:**
+
+```bash
+git clone <repo-url> && cd meeting-system
+cp infra/.env.example infra/.env               # API_DOMAIN=api.yourdomain.com
+cp infra/.env.api.example infra/.env.api       # fill in production secrets
+cp infra/.env.bot.example infra/.env.bot       # fill in production secrets
+docker compose -f infra/docker-compose.prod.yml up -d --build
+```
+
+`JWT_SECRET` (API) must equal the dashboard's `API_JWT_SECRET` (Vercel); `BOT_SERVICE_TOKEN` must be identical in `.env.api` and `.env.bot`. Deploy the dashboard to Vercel separately (root directory `apps/dashboard`), with `NEXT_PUBLIC_API_URL` pointing at `https://<API_DOMAIN>/api/v1` — Next.js inlines this at build time, so set it before the first deploy.
+
+After the API is reachable, register commands globally (not scoped to `DISCORD_DEV_GUILD_ID`):
+
+```bash
+pnpm --filter bot deploy-commands
+```
+
+Run exactly one bot instance — never scale the `bot` service beyond 1 replica. Two instances mean duplicate events and two reconcilers fighting each other. Sharding is not needed below 2,500 guilds and would require moving the reconciler behind a lock.
+
+Before going live: set a strong `BOT_SERVICE_TOKEN`, restrict `CORS_ORIGIN` to the dashboard's real domain, enable Atlas IP allowlisting, and confirm `SWAGGER_ENABLED` is set the way you want it (defaults off when `NODE_ENV=production`).
 
 ---
 

@@ -1,0 +1,46 @@
+# Production compose for the API and bot only — the dashboard deploys
+# separately to Vercel and the database is MongoDB Atlas, not a container
+# here. Run from the repo root on the VM:
+#
+#   docker compose -f infra/docker-compose.prod.yml up -d --build
+#
+# .env.api and .env.bot live only on the VM (never committed) and hold the
+# production secrets — see the README's Deployment section for the full
+# variable list.
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    restart: unless-stopped
+    env_file: .env.api
+    expose:
+      - "3001"
+
+  bot:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.bot
+    restart: unless-stopped
+    env_file: .env.bot
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+volumes:
+  caddy_data:
+  caddy_config:

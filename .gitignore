@@ -6,6 +6,9 @@ dist/
 .env
 .env.local
 .env.*.local
+.env.api
+.env.bot
+infra/.env
 !.env.example
 coverage/
 .DS_Store

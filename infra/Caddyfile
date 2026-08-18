@@ -1,0 +1,7 @@
+# Reverse proxy for the API only — the dashboard is deployed separately on
+# Vercel and the bot has no inbound traffic at all. Caddy handles the
+# Let's Encrypt certificate automatically once DNS for {$API_DOMAIN} points
+# at this host.
+{$API_DOMAIN} {
+	reverse_proxy api:3001
+}

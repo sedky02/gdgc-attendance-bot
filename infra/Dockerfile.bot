@@ -1,0 +1,39 @@
+# syntax=docker/dockerfile:1
+#
+# Multi-stage build for @meeting-system/bot. Same Turborepo pruning pattern
+# as infra/Dockerfile.api — see that file's comment for why.
+#
+# Build from the repo root:
+#   docker build -f infra/Dockerfile.bot -t meeting-system-bot .
+
+FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+RUN npm install -g turbo@2.3.0 pnpm@9.15.0
+
+FROM base AS pruner
+COPY . .
+RUN turbo prune @meeting-system/bot --docker
+
+FROM base AS installer
+COPY --from=pruner /app/out/json/ .
+RUN pnpm install --frozen-lockfile
+COPY --from=pruner /app/out/full/ .
+RUN pnpm turbo run build --filter=@meeting-system/bot
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 bot
+# pnpm keeps each workspace package's own dependency symlinks in that
+# package's own node_modules, not hoisted to the root — see Dockerfile.api's
+# comment for why both the root and per-package node_modules are needed.
+COPY --from=installer --chown=bot:nodejs /app/node_modules ./node_modules
+COPY --from=installer --chown=bot:nodejs /app/packages/contracts/node_modules ./packages/contracts/node_modules
+COPY --from=installer --chown=bot:nodejs /app/packages/contracts/dist ./packages/contracts/dist
+COPY --from=installer --chown=bot:nodejs /app/packages/contracts/package.json ./packages/contracts/package.json
+COPY --from=installer --chown=bot:nodejs /app/apps/bot/node_modules ./apps/bot/node_modules
+COPY --from=installer --chown=bot:nodejs /app/apps/bot/dist ./apps/bot/dist
+COPY --from=installer --chown=bot:nodejs /app/apps/bot/package.json ./apps/bot/package.json
+
+USER bot
+CMD ["node", "apps/bot/dist/index.js"]
