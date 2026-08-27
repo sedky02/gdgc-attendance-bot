@@ -582,8 +582,12 @@ NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=
 DISCORD_CLIENT_ID=
 DISCORD_CLIENT_SECRET=
+DISCORD_BOT_TOKEN=          # same token as apps/bot's DISCORD_TOKEN — lists which guilds the bot is in
+API_JWT_SECRET=             # must match apps/api's JWT_SECRET
 NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
 ```
+
+The dashboard is multi-tenant: after Discord OAuth, a user sees only the guilds where they're a member *and* the bot is installed (computed as the intersection of `/users/@me/guilds` called with the user's token and with the bot's token). One shared guild skips straight through; more than one shows a picker at `/select-guild` before the rest of the app is reachable.
 
 ---
 
@@ -657,7 +661,7 @@ cp infra/.env.bot.example infra/.env.bot       # fill in production secrets
 docker compose -f infra/docker-compose.prod.yml up -d --build
 ```
 
-`JWT_SECRET` (API) must equal the dashboard's `API_JWT_SECRET` (Vercel); `BOT_SERVICE_TOKEN` must be identical in `.env.api` and `.env.bot`. Deploy the dashboard to Vercel separately (root directory `apps/dashboard`), with `NEXT_PUBLIC_API_URL` pointing at `https://<API_DOMAIN>/api/v1` — Next.js inlines this at build time, so set it before the first deploy.
+`JWT_SECRET` (API) must equal the dashboard's `API_JWT_SECRET` (Vercel); `BOT_SERVICE_TOKEN` must be identical in `.env.api` and `.env.bot`. Deploy the dashboard to Vercel separately (root directory `apps/dashboard`), with `NEXT_PUBLIC_API_URL` pointing at `https://<API_DOMAIN>/api/v1` — Next.js inlines this at build time, so set it before the first deploy — and `DISCORD_BOT_TOKEN` set to the same token as `.env.bot`'s `DISCORD_TOKEN`, which the dashboard needs to list which guilds the bot is installed in.
 
 After the API is reachable, register commands globally (not scoped to `DISCORD_DEV_GUILD_ID`):
 
@@ -695,7 +699,6 @@ Deliberately out of the MVP:
 - Attendance requirements, quotas, or scoring
 - Cross-semester analytics and per-member trends
 - CSV and PDF export
-- Multi-guild management UI
 - Redis, queues, sharding
 
 Each can be added without changing the attendance model, which is the point of getting that model right first.
