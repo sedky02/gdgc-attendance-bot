@@ -9,6 +9,13 @@ const API_JWT_SECRET = new TextEncoder().encode(process.env.API_JWT_SECRET!);
 export const { handlers, signIn, signOut, auth, unstable_update }: NextAuthResult = NextAuth({
   providers: [
     Discord({
+      // Auth.js v5's automatic env-var inference only looks for
+      // AUTH_DISCORD_ID/AUTH_DISCORD_SECRET — this repo uses
+      // DISCORD_CLIENT_ID/DISCORD_CLIENT_SECRET everywhere else, so they
+      // must be passed explicitly or clientId silently resolves to
+      // undefined and Discord rejects the OAuth request.
+      clientId: process.env.DISCORD_CLIENT_ID,
+      clientSecret: process.env.DISCORD_CLIENT_SECRET,
       authorization: { params: { scope: "identify guilds" } },
     }),
   ],
