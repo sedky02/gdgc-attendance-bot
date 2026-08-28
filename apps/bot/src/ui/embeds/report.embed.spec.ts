@@ -30,25 +30,29 @@ function buildReport(overrides: Partial<MeetingReport> = {}): MeetingReport {
   };
 }
 
+function fieldNamed(embed: ReturnType<typeof reportEmbed>, name: string) {
+  return embed.data.fields?.find((field) => field.name === name);
+}
+
 describe("reportEmbed", () => {
   it("includes the meeting type name as the title", () => {
     const embed = reportEmbed("Weekly Technical Meeting", buildReport());
-    expect(embed.data.title).toBe("Weekly Technical Meeting");
+    expect(embed.data.title).toBe("📋 Weekly Technical Meeting");
   });
 
   it("shows the time range and total duration using Discord's own timestamp markup (so it renders in each viewer's local time, matching the embed footer)", () => {
     const embed = reportEmbed("Weekly", buildReport());
     const start = discordTimestamp(new Date("2026-08-16T19:00:00Z"), "t");
     const end = discordTimestamp(new Date("2026-08-16T20:35:00Z"), "t");
-    expect(embed.data.description).toContain(`${start} → ${end} (1h35)`);
+    expect(embed.data.description).toContain(`${start} → ${end} · 1h35`);
   });
 
   it("shows present/expected counts from frozen stats", () => {
     const embed = reportEmbed("Weekly", buildReport());
-    expect(embed.data.description).toContain("Present  2/3");
+    expect(embed.data.description).toContain("Present 2/3");
   });
 
-  it("lists each attendee with join/leave time, duration, and lateness", () => {
+  it("lists each attendee with a green dot, join/leave time, duration, and lateness", () => {
     const report = buildReport({
       attendance: [
         {
@@ -74,7 +78,8 @@ describe("reportEmbed", () => {
     const embed = reportEmbed("Weekly", report);
     const joined = discordTimestamp(new Date("2026-08-16T19:17:00Z"), "t");
     const left = discordTimestamp(new Date("2026-08-16T20:35:00Z"), "t");
-    expect(embed.data.description).toContain(`Ali   ${joined} → ${left}   1h18   late 17m`);
+    const presentField = fieldNamed(embed, "Present (1)");
+    expect(presentField?.value).toBe(`🟡 **Ali**   ${joined} → ${left}   1h18   late 17m`);
   });
 
   it("marks an attendee with no matching role as unexpected", () => {
@@ -101,15 +106,20 @@ describe("reportEmbed", () => {
     });
 
     const embed = reportEmbed("Weekly", report);
-    expect(embed.data.description).toContain("(unexpected)");
+    expect(fieldNamed(embed, "Present (1)")?.value).toContain("(unexpected)");
   });
 
-  it("lists absentees as absent", () => {
+  it("lists absentees with a red dot in a separate field", () => {
     const report = buildReport({
       absentees: [{ discordUserId: "user-3", usernameSnapshot: "ahmed", roleIds: [] }],
     });
 
     const embed = reportEmbed("Weekly", report);
-    expect(embed.data.description).toContain("ahmed   absent");
+    expect(fieldNamed(embed, "Absent (1)")?.value).toBe("🔴 ahmed");
+  });
+
+  it("omits the Absent field entirely when nobody is absent", () => {
+    const embed = reportEmbed("Weekly", buildReport({ absentees: [] }));
+    expect(embed.data.fields?.some((field) => field.name.startsWith("Absent"))).toBe(false);
   });
 });

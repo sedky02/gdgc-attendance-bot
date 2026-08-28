@@ -12,7 +12,9 @@ export const data = new SlashCommandBuilder()
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageEvents);
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-  const meeting = await findLiveMeetingForInteraction(interaction, ["ACTIVE", "PAUSED"]);
+  // Public — the final attendance report is meant for the whole channel,
+  // not just whoever ran the command.
+  const meeting = await findLiveMeetingForInteraction(interaction, ["ACTIVE", "PAUSED"], { ephemeral: false });
   if (!meeting) return;
 
   try {
