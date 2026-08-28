@@ -22,6 +22,8 @@ export const meetingsApi = {
   start: async (dto: StartMeetingDto): Promise<Meeting> =>
     MeetingSchema.parse(await httpClient.post<unknown>("/meetings", dto)),
 
+  getById: async (id: string): Promise<Meeting> => MeetingSchema.parse(await httpClient.get<unknown>(`/meetings/${id}`)),
+
   pause: async (id: string, dto: PauseMeetingDto): Promise<Meeting> =>
     MeetingSchema.parse(await httpClient.post<unknown>(`/meetings/${id}/pause`, dto)),
 

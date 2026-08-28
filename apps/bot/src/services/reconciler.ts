@@ -1,6 +1,6 @@
 import type { Client } from "discord.js";
 import { apiClient } from "./api-client.js";
-import { refreshRosterMessage } from "./roster-message.js";
+import { refreshRosterMessage, untrackRosterMessage } from "./roster-message.js";
 import { logger } from "../logger.js";
 import { env } from "../config.js";
 import { getPresentMembers } from "../utils/present-members.js";
@@ -33,12 +33,28 @@ export function untrackMeeting(meetingId: string): void {
   }
 }
 
-/** Every 60s per active meeting, per the reconciler's job. */
+/**
+ * Every 60s per active meeting, per the reconciler's job. Also the only
+ * place that notices a meeting this process still believes is ACTIVE has
+ * actually been ended elsewhere — almost always the API's own sweeper
+ * auto-ending an abandoned meeting, since every path the bot itself uses to
+ * end/pause/cancel a meeting already calls `untrackMeeting` right there.
+ * Without this check the roster message would freeze on its last "Live"
+ * snapshot forever instead of ever reflecting the real outcome.
+ */
 export async function reconcileAll(): Promise<void> {
   const observedAt = new Date();
 
   for (const [meetingId, meeting] of tracked) {
     try {
+      const current = await apiClient.meetings.getById(meetingId);
+      if (current.status !== "ACTIVE") {
+        untrackMeeting(meetingId);
+        await refreshRosterMessage(meetingId);
+        untrackRosterMessage(meetingId);
+        continue;
+      }
+
       const guild = await client?.guilds.fetch(meeting.guildId).catch(() => null);
       if (!guild) continue;
       const presentMembers = await getPresentMembers(guild, meeting.voiceChannelIds);

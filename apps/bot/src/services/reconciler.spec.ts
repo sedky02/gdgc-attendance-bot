@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./api-client.js", () => ({
   apiClient: {
-    meetings: { syncAttendance: vi.fn().mockResolvedValue(undefined) },
+    meetings: {
+      syncAttendance: vi.fn().mockResolvedValue(undefined),
+      getById: vi.fn().mockResolvedValue({ status: "ACTIVE" }),
+    },
     internal: { bootstrap: vi.fn().mockResolvedValue([]) },
   },
 }));
@@ -37,6 +40,8 @@ describe("reconciler", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.mocked(apiClient.meetings.syncAttendance).mockClear();
+    vi.mocked(apiClient.meetings.getById).mockClear();
+    vi.mocked(apiClient.meetings.getById).mockResolvedValue({ status: "ACTIVE" } as never);
     vi.mocked(apiClient.internal.bootstrap).mockClear();
   });
 
@@ -80,6 +85,21 @@ describe("reconciler", () => {
     await reconcileAll();
 
     expect(apiClient.meetings.syncAttendance).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops tracking a meeting the API no longer reports as ACTIVE, without attempting to sync it", async () => {
+    vi.mocked(apiClient.meetings.getById).mockResolvedValue({ status: "COMPLETED" } as never);
+    initReconciler(fakeClient(0));
+    trackMeeting("meeting-1", "guild-1", ["channel-1"]);
+
+    await reconcileAll();
+
+    expect(apiClient.meetings.syncAttendance).not.toHaveBeenCalled();
+
+    // Tracking actually stopped — a further tick makes no further calls at all.
+    vi.mocked(apiClient.meetings.getById).mockClear();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(apiClient.meetings.getById).not.toHaveBeenCalled();
   });
 
   describe("bootstrap", () => {
