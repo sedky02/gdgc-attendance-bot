@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MeetingReport } from "@meeting-system/contracts";
 import { reportEmbed } from "./report.embed.js";
+import { discordTimestamp } from "../../utils/format-duration.js";
 
 function buildReport(overrides: Partial<MeetingReport> = {}): MeetingReport {
   return {
@@ -35,9 +36,11 @@ describe("reportEmbed", () => {
     expect(embed.data.title).toBe("Weekly Technical Meeting");
   });
 
-  it("shows the time range and total duration", () => {
+  it("shows the time range and total duration using Discord's own timestamp markup (so it renders in each viewer's local time, matching the embed footer)", () => {
     const embed = reportEmbed("Weekly", buildReport());
-    expect(embed.data.description).toContain("19:00 → 20:35 (1h35)");
+    const start = discordTimestamp(new Date("2026-08-16T19:00:00Z"), "t");
+    const end = discordTimestamp(new Date("2026-08-16T20:35:00Z"), "t");
+    expect(embed.data.description).toContain(`${start} → ${end} (1h35)`);
   });
 
   it("shows present/expected counts from frozen stats", () => {
@@ -69,7 +72,9 @@ describe("reportEmbed", () => {
     });
 
     const embed = reportEmbed("Weekly", report);
-    expect(embed.data.description).toContain("Ali   19:17 → 20:35   1h18   late 17m");
+    const joined = discordTimestamp(new Date("2026-08-16T19:17:00Z"), "t");
+    const left = discordTimestamp(new Date("2026-08-16T20:35:00Z"), "t");
+    expect(embed.data.description).toContain(`Ali   ${joined} → ${left}   1h18   late 17m`);
   });
 
   it("marks an attendee with no matching role as unexpected", () => {

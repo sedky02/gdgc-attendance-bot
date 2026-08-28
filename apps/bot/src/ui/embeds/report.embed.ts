@@ -1,12 +1,12 @@
 import { EmbedBuilder } from "discord.js";
 import type { MeetingReport } from "@meeting-system/contracts";
-import { formatDate, formatDuration, formatTime } from "../../utils/format-duration.js";
+import { discordTimestamp, formatDuration } from "../../utils/format-duration.js";
 
 export function reportEmbed(meetingTypeName: string, report: MeetingReport): EmbedBuilder {
   const { meeting, attendance, absentees } = report;
 
-  const start = formatTime(meeting.startedAt);
-  const end = meeting.endedAt ? formatTime(meeting.endedAt) : "ongoing";
+  const start = discordTimestamp(meeting.startedAt, "t");
+  const end = meeting.endedAt ? discordTimestamp(meeting.endedAt, "t") : "ongoing";
   const duration = meeting.stats ? ` (${formatDuration(meeting.stats.durationMs)})` : "";
 
   const presentCount = meeting.stats?.presentCount ?? attendance.length;
@@ -16,9 +16,9 @@ export function reportEmbed(meetingTypeName: string, report: MeetingReport): Emb
     .slice()
     .sort((a, b) => (a.stats?.firstJoinedAt.getTime() ?? 0) - (b.stats?.firstJoinedAt.getTime() ?? 0))
     .map((attendee) => {
-      const joined = attendee.stats ? formatTime(attendee.stats.firstJoinedAt) : "?";
+      const joined = attendee.stats ? discordTimestamp(attendee.stats.firstJoinedAt, "t") : "?";
       const lastSession = attendee.sessions[attendee.sessions.length - 1];
-      const left = lastSession?.leftAt ? formatTime(lastSession.leftAt) : "ongoing";
+      const left = lastSession?.leftAt ? discordTimestamp(lastSession.leftAt, "t") : "ongoing";
       const duration = attendee.stats ? `   ${formatDuration(attendee.stats.totalDurationMs)}` : "";
       const sessionsNote =
         attendee.stats && attendee.stats.sessionCount > 1 ? `   (${attendee.stats.sessionCount} sessions)` : "";
@@ -34,7 +34,7 @@ export function reportEmbed(meetingTypeName: string, report: MeetingReport): Emb
     .setTitle(meetingTypeName)
     .setDescription(
       [
-        `${formatDate(meeting.startedAt)} · ${start} → ${end}${duration}`,
+        `${discordTimestamp(meeting.startedAt, "D")} · ${start} → ${end}${duration}`,
         "",
         `Present  ${presentCount}/${expectedCount}`,
         "",

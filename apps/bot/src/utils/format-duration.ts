@@ -5,10 +5,16 @@ export function formatDuration(ms: number): string {
   return hours > 0 ? `${hours}h${minutes.toString().padStart(2, "0")}` : `${minutes}m`;
 }
 
-export function formatTime(date: Date): string {
-  return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
-}
+export type DiscordTimestampStyle = "t" | "T" | "d" | "D" | "f" | "F" | "R";
 
-export function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+/**
+ * Discord's own timestamp markup — the client renders this in *each
+ * viewer's* local timezone, client-side. Formatting a time ourselves (e.g.
+ * with a fixed `timeZone` option) picks one timezone for everyone, which
+ * disagrees with the embed's own footer timestamp (which Discord already
+ * auto-localizes) for anyone not in that zone. This is the only way a join
+ * time and the embed footer ever agree for a given viewer.
+ */
+export function discordTimestamp(date: Date, style: DiscordTimestampStyle = "f"): string {
+  return `<t:${Math.floor(date.getTime() / 1000)}:${style}>`;
 }

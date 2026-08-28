@@ -1,6 +1,6 @@
 import { EmbedBuilder } from "discord.js";
 import type { Meeting, MeetingReport } from "@meeting-system/contracts";
-import { formatDuration, formatTime } from "../../utils/format-duration.js";
+import { discordTimestamp, formatDuration } from "../../utils/format-duration.js";
 
 const PRESENT_DOT = "🟢";
 const LATE_DOT = "🟡";
@@ -37,7 +37,7 @@ export function rosterEmbed(meetingTypeName: string, report: MeetingReport): Emb
     .map((attendee) => {
       const isLate = (attendee.stats?.latenessMs ?? 0) > 0;
       const dot = isLate ? LATE_DOT : PRESENT_DOT;
-      const joined = attendee.stats ? formatTime(attendee.stats.firstJoinedAt) : "?";
+      const joined = attendee.stats ? discordTimestamp(attendee.stats.firstJoinedAt, "t") : "?";
       const lateNote = isLate ? `   late ${formatDuration(attendee.stats!.latenessMs)}` : "";
       const unexpectedNote = attendee.expected ? "" : "   (unexpected)";
 

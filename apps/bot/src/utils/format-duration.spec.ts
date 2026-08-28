@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatDuration, formatTime } from "./format-duration.js";
+import { discordTimestamp, formatDuration } from "./format-duration.js";
 
 describe("formatDuration", () => {
   it("formats sub-hour durations as minutes", () => {
@@ -15,14 +15,14 @@ describe("formatDuration", () => {
   });
 });
 
-describe("formatTime", () => {
-  it("formats a UTC time as 24-hour HH:MM", () => {
-    expect(formatTime(new Date("2026-08-16T19:02:00Z"))).toBe("19:02");
+describe("discordTimestamp", () => {
+  it("renders Discord's <t:seconds:style> markup, defaulting to style f", () => {
+    const date = new Date("2026-08-16T19:02:00Z");
+    expect(discordTimestamp(date)).toBe(`<t:${Math.floor(date.getTime() / 1000)}:f>`);
   });
-});
 
-describe("formatDate", () => {
-  it("formats a UTC date as DD Mon YYYY", () => {
-    expect(formatDate(new Date("2026-08-16T19:00:00Z"))).toBe("16 Aug 2026");
+  it("uses the requested style", () => {
+    const date = new Date("2026-08-16T19:02:00Z");
+    expect(discordTimestamp(date, "t")).toBe(`<t:${Math.floor(date.getTime() / 1000)}:t>`);
   });
 });
