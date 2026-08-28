@@ -1,6 +1,7 @@
 import { PermissionFlagsBits, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
 import { apiClient } from "../../services/api-client.js";
 import { untrackMeeting } from "../../services/reconciler.js";
+import { refreshRosterMessage } from "../../services/roster-message.js";
 import { findLiveMeetingForInteraction } from "../../utils/find-live-meeting.js";
 import { successEmbed } from "../../ui/embeds/success.embed.js";
 import { replyWithError } from "../../ui/reply-error.js";
@@ -17,6 +18,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   try {
     await apiClient.meetings.pause(meeting.id, { pausedBy: interaction.user.id, observedAt: new Date() });
     untrackMeeting(meeting.id);
+    await refreshRosterMessage(meeting.id);
     await interaction.editReply({ content: null, embeds: [successEmbed("Meeting paused")], components: [] });
   } catch (error) {
     await replyWithError(interaction, error, { mode: "editReply", fallbackMessage: "Something went wrong." });

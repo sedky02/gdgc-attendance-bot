@@ -1,6 +1,7 @@
 import { PermissionFlagsBits, SlashCommandBuilder, TextInputStyle, type ChatInputCommandInteraction } from "discord.js";
 import { apiClient } from "../../services/api-client.js";
 import { untrackMeeting } from "../../services/reconciler.js";
+import { refreshRosterMessage, untrackRosterMessage } from "../../services/roster-message.js";
 import { findLiveMeetingForInteraction } from "../../utils/find-live-meeting.js";
 import { successEmbed } from "../../ui/embeds/success.embed.js";
 import { replyWithError } from "../../ui/reply-error.js";
@@ -44,6 +45,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       observedAt: new Date(),
     });
     untrackMeeting(meeting.id);
+    await refreshRosterMessage(meeting.id);
+    untrackRosterMessage(meeting.id);
 
     await modalSubmit.editReply({ content: null, embeds: [successEmbed("Meeting cancelled", cancelReason)], components: [] });
   } catch (error) {

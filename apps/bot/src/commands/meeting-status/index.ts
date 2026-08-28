@@ -1,27 +1,27 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
 import { apiClient } from "../../services/api-client.js";
 import { findLiveMeetingForInteraction } from "../../utils/find-live-meeting.js";
-import { successEmbed } from "../../ui/embeds/success.embed.js";
+import { rosterEmbed } from "../../ui/embeds/roster.embed.js";
+import { replyWithError } from "../../ui/reply-error.js";
 
 export const data = new SlashCommandBuilder()
   .setName("meeting-status")
   .setDescription("Show who is currently in the live meeting");
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-  const meeting = await findLiveMeetingForInteraction(interaction, ["ACTIVE", "PAUSED"]);
+  // Public — this is meant to be a shared status check for the whole
+  // channel, not a private lookup for whoever ran the command.
+  const meeting = await findLiveMeetingForInteraction(interaction, ["ACTIVE", "PAUSED"], { ephemeral: false });
   if (!meeting) return;
 
-  const attendance = await apiClient.meetings.getAttendance(meeting.id);
-  const present = attendance.filter((a) => a.sessions.some((session) => session.leftAt === null));
+  try {
+    const [report, meetingType] = await Promise.all([
+      apiClient.meetings.getReport(meeting.id),
+      apiClient.meetingTypes.get(meeting.meetingType),
+    ]);
 
-  const description =
-    present.length > 0
-      ? present.map((a) => (a.expected ? a.displayNameSnapshot : `${a.displayNameSnapshot} (unexpected)`)).join("\n")
-      : "Nobody is currently present.";
-
-  await interaction.editReply({
-    content: null,
-    embeds: [successEmbed(meeting.status === "PAUSED" ? "Meeting paused" : "Meeting live", description)],
-    components: [],
-  });
+    await interaction.editReply({ content: null, embeds: [rosterEmbed(meetingType.name, report)], components: [] });
+  } catch (error) {
+    await replyWithError(interaction, error, { mode: "editReply", fallbackMessage: "Something went wrong." });
+  }
 }

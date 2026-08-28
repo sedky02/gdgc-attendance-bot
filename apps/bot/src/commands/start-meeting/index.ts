@@ -8,7 +8,9 @@ import {
 import type { ExpectedMember, MeetingType, PresentMember } from "@meeting-system/contracts";
 import { apiClient } from "../../services/api-client.js";
 import { trackMeeting } from "../../services/reconciler.js";
+import { trackRosterMessage } from "../../services/roster-message.js";
 import { successEmbed } from "../../ui/embeds/success.embed.js";
+import { rosterEmbed } from "../../ui/embeds/roster.embed.js";
 import { replyWithError } from "../../ui/reply-error.js";
 import { promptMeetingTypeSelect } from "../../ui/selects/meeting-type-select-prompt.js";
 import { DEFAULT_SELECT_TIMEOUT_MS } from "../../ui/constants.js";
@@ -86,6 +88,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         ),
       ],
       components: [],
+    });
+
+    // A separate, public, non-ephemeral message — kept in sync by the
+    // reconciler's 60s tick (and by pause/resume/end/cancel firing an
+    // immediate refresh) via services/roster-message.ts. Posted as a
+    // follow-up, not an edit of the ephemeral reply above, since only the
+    // invoker can ever see that one.
+    const report = await apiClient.meetings.getReport(meeting.id);
+    const rosterMessage = await interaction.followUp({ embeds: [rosterEmbed(meetingType.name, report)] });
+    trackRosterMessage(meeting.id, {
+      channelId: rosterMessage.channelId,
+      messageId: rosterMessage.id,
+      meetingTypeName: meetingType.name,
     });
   } catch (error) {
     await replyWithError(interaction, error, { mode: "editReply", swallow: true, fallbackMessage: "The request timed out." });

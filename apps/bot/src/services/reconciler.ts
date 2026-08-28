@@ -1,5 +1,6 @@
 import type { Client } from "discord.js";
 import { apiClient } from "./api-client.js";
+import { refreshRosterMessage } from "./roster-message.js";
 import { logger } from "../logger.js";
 import { env } from "../config.js";
 import { getPresentMembers } from "../utils/present-members.js";
@@ -42,6 +43,7 @@ export async function reconcileAll(): Promise<void> {
       if (!guild) continue;
       const presentMembers = await getPresentMembers(guild, meeting.voiceChannelIds);
       await apiClient.meetings.syncAttendance(meetingId, { presentMembers, observedAt });
+      await refreshRosterMessage(meetingId);
     } catch (error) {
       logger.warn({ err: error, meetingId }, "Reconciler sync failed");
     }

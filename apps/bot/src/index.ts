@@ -4,11 +4,13 @@ import { registerReadyEvent } from "./events/ready.js";
 import { registerInteractionCreateEvent } from "./events/interaction-create.js";
 import { registerVoiceStateUpdateEvent } from "./events/voice-state-update.js";
 import { initReconciler, bootstrap } from "./services/reconciler.js";
+import { initRosterMessages } from "./services/roster-message.js";
 import { logger } from "./logger.js";
 
 const client = createClient();
 
 initReconciler(client);
+initRosterMessages(client);
 registerReadyEvent(client);
 registerInteractionCreateEvent(client);
 registerVoiceStateUpdateEvent(client);

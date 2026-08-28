@@ -29,13 +29,15 @@ const SELECT_ID = "find-live-meeting-select";
 export async function findLiveMeetingForInteraction(
   interaction: ResolvableInteraction,
   requiredStatuses: readonly Meeting["status"][],
+  options: { ephemeral?: boolean } = {},
 ): Promise<Meeting | null> {
   if (!interaction.inGuild()) {
     await replyGuildOnlyError(interaction);
     return null;
   }
 
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  const ephemeral = options.ephemeral ?? true;
+  await interaction.deferReply(ephemeral ? { flags: MessageFlags.Ephemeral } : {});
 
   const liveMeetings = await apiClient.meetings.listActive(interaction.guildId);
   const candidates = liveMeetings.filter((meeting) => requiredStatuses.includes(meeting.status));
