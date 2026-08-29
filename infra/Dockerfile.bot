@@ -36,4 +36,9 @@ COPY --from=installer --chown=bot:nodejs /app/apps/bot/dist ./apps/bot/dist
 COPY --from=installer --chown=bot:nodejs /app/apps/bot/package.json ./apps/bot/package.json
 
 USER bot
+# Only meaningful on a host (e.g. Render's free tier) that needs an inbound
+# HTTP target to keep the service from being suspended as idle — see
+# src/health-server.ts. Ignored everywhere else; the bot makes no other use
+# of a listening port.
+EXPOSE 3002
 CMD ["node", "apps/bot/dist/index.js"]

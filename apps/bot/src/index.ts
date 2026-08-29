@@ -5,10 +5,12 @@ import { registerInteractionCreateEvent } from "./events/interaction-create.js";
 import { registerVoiceStateUpdateEvent } from "./events/voice-state-update.js";
 import { initReconciler, bootstrap } from "./services/reconciler.js";
 import { initRosterMessages } from "./services/roster-message.js";
+import { startHealthServer } from "./health-server.js";
 import { logger } from "./logger.js";
 
 const client = createClient();
 
+startHealthServer();
 initReconciler(client);
 initRosterMessages(client);
 registerReadyEvent(client);
