@@ -10,7 +10,7 @@ import { rolesToSnapshot } from "../../utils/role-snapshot.js";
 import { NAME_INPUT_ID, ROLE_SELECT_ID } from "./constants.js";
 
 export const data = new SlashCommandBuilder()
-  .setName("configure-meeting")
+  .setName("create-meeting-type")
   .setDescription("Create a new meeting type")
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageEvents);
 
@@ -21,7 +21,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   }
 
   const modal = buildSingleFieldModal({
-    customId: `configure-meeting-${interaction.id}`,
+    customId: `create-meeting-type-${interaction.id}`,
     title: "New meeting type",
     label: "Name",
     fieldId: NAME_INPUT_ID,

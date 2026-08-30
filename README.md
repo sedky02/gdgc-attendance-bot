@@ -324,7 +324,7 @@ The sweeper runs every 5 minutes and auto-ends any meeting whose channels have b
 
 | Command | Who | What it does |
 |---|---|---|
-| `/configure-meeting` | manager | Creates a MeetingType. Modal for the name, native role select for roles. |
+| `/create-meeting-type` | manager | Creates a MeetingType. Modal for the name, native role select for roles. |
 | `/edit-meeting-type` | manager | Edits name and roles. Affects future meetings only. |
 | `/start-meeting` | manager | Detects your current voice channel, prompts for a type, snapshots expected members, opens sessions for whoever is already present. |
 | `/pause-meeting` | manager | `ACTIVE → PAUSED`. Closes all open sessions. |
@@ -450,7 +450,7 @@ meeting-system/
 │   │       ├── client.ts
 │   │       ├── deploy-commands.ts
 │   │       ├── commands/                # one folder per command
-│   │       │   ├── configure-meeting/{index.ts,constants.ts}
+│   │       │   ├── create-meeting-type/{index.ts,constants.ts}
 │   │       │   ├── edit-meeting-type/{index.ts,constants.ts}
 │   │       │   ├── start-meeting/{index.ts,constants.ts}
 │   │       │   ├── pause-meeting/index.ts

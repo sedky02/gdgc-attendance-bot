@@ -1,6 +1,6 @@
 import { Client, Collection, GatewayIntentBits, type ChatInputCommandInteraction, type SlashCommandBuilder } from "discord.js";
 import * as pingCommand from "./commands/ping/index.js";
-import * as configureMeetingCommand from "./commands/configure-meeting/index.js";
+import * as createMeetingTypeCommand from "./commands/create-meeting-type/index.js";
 import * as editMeetingTypeCommand from "./commands/edit-meeting-type/index.js";
 import * as startMeetingCommand from "./commands/start-meeting/index.js";
 import * as pauseMeetingCommand from "./commands/pause-meeting/index.js";
@@ -17,7 +17,7 @@ export interface Command {
 export const commands = new Collection<string, Command>(
   [
     pingCommand,
-    configureMeetingCommand,
+    createMeetingTypeCommand,
     editMeetingTypeCommand,
     startMeetingCommand,
     pauseMeetingCommand,

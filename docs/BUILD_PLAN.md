@@ -57,7 +57,7 @@ No `MeetingReport` collection. The summary lives on the meeting.
 
 - [x] `MeetingTypesService` and controller for list, create, get, patch, soft-delete
 - [x] All input validated against the shared Zod schemas
-- [x] `/configure-meeting` — modal for the name, `RoleSelectMenuBuilder` for roles
+- [x] `/create-meeting-type` — modal for the name, `RoleSelectMenuBuilder` for roles
 - [x] `/edit-meeting-type` — select the type, then modal and role select, prefilled
 - [x] Refresh `nameSnapshot` on every edit
 - [x] Permission gate via `setDefaultMemberPermissions(ManageEvents)`

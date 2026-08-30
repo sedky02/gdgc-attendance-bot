@@ -30,5 +30,5 @@ export async function replyNotInVoiceChannelError(interaction: RepliableInteract
 
 /** `interaction` must already be deferred/replied — this edits that reply. */
 export async function replyNoMeetingTypesError(interaction: RepliableInteraction): Promise<void> {
-  await interaction.editReply("No meeting types configured yet — run /configure-meeting first.");
+  await interaction.editReply("No meeting types configured yet — run /create-meeting-type first.");
 }

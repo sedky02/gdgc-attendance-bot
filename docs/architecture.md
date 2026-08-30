@@ -387,7 +387,7 @@ A separate MeetingReport collection should only be introduced when report-specif
 
 # 10. Discord Commands
 
-## `/configure-meeting`
+## `/create-meeting-type`
 
 Creates a new MeetingType.
 
@@ -401,7 +401,7 @@ Roles
 Example:
 
 ```text
-/configure-meeting
+/create-meeting-type
 
 Name:
 Weekly Technical Meeting
@@ -1064,7 +1064,7 @@ Attendance
 Implement:
 
 ```text
-/configure-meeting
+/create-meeting-type
 /edit-meeting-type
 ```
 
