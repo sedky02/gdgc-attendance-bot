@@ -42,7 +42,9 @@ export async function findLiveMeetingForInteraction(
   const liveMeetings = await apiClient.meetings.listActive(interaction.guildId);
   const candidates = liveMeetings.filter((meeting) => requiredStatuses.includes(meeting.status));
 
-  const voiceChannelId = interaction.inCachedGuild() ? interaction.member.voice.channelId : null;
+  const guild = await interaction.client.guilds.fetch(interaction.guildId);
+  const member = await guild.members.fetch(interaction.user.id);
+  const voiceChannelId = member.voice.channelId;
   const direct = voiceChannelId ? candidates.find((meeting) => meeting.voiceChannelIds.includes(voiceChannelId)) : undefined;
   if (direct) {
     return direct;

@@ -23,18 +23,21 @@ export const data = new SlashCommandBuilder()
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageEvents);
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-  if (!interaction.inCachedGuild()) {
+  if (!interaction.inGuild()) {
     await replyGuildOnlyError(interaction);
     return;
   }
 
-  const voiceChannel = interaction.member.voice.channel;
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  const guild = await interaction.client.guilds.fetch(interaction.guildId);
+  const member = await guild.members.fetch(interaction.user.id);
+
+  const voiceChannel = member.voice.channel;
   if (!voiceChannel) {
     await replyNotInVoiceChannelError(interaction);
     return;
   }
-
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const meetingTypes = await apiClient.meetingTypes.list(interaction.guildId, false);
   if (meetingTypes.length === 0) {
@@ -58,7 +61,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     await typeSelect.deferUpdate();
 
-    const expectedMembers = await snapshotExpectedMembers(interaction.guild, meetingType);
+    const expectedMembers = await snapshotExpectedMembers(guild, meetingType);
     const presentMembers: PresentMember[] = voiceChannel.members
       .filter((member) => !member.user.bot)
       .map((member) => ({

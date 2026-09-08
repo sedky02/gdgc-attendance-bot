@@ -17,7 +17,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   if (!meeting) return;
 
   try {
-    const presentMembers = interaction.guild ? await getPresentMembers(interaction.guild, meeting.voiceChannelIds) : [];
+    const guild = await interaction.client.guilds.fetch(meeting.guildId);
+    const presentMembers = await getPresentMembers(guild, meeting.voiceChannelIds);
 
     const resumed = await apiClient.meetings.resume(meeting.id, {
       resumedBy: interaction.user.id,
