@@ -15,6 +15,7 @@ import { replyWithError } from "../../ui/reply-error.js";
 import { promptMeetingTypeSelect } from "../../ui/selects/meeting-type-select-prompt.js";
 import { DEFAULT_SELECT_TIMEOUT_MS } from "../../ui/constants.js";
 import { replyGuildOnlyError, replyNoMeetingTypesError, replyNotInVoiceChannelError } from "../../utils/interaction-guards.js";
+import { logger } from "../../logger.js";
 import { TYPE_SELECT_ID } from "./constants.js";
 
 export const data = new SlashCommandBuilder()
@@ -30,7 +31,17 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-  const guild = await interaction.client.guilds.fetch(interaction.guildId);
+  let guild;
+  try {
+    guild = await interaction.client.guilds.fetch(interaction.guildId);
+  } catch (error) {
+    logger.error(
+      { err: error, guildId: interaction.guildId, discordUserId: interaction.user.id },
+      "Failed to fetch guild for start-meeting",
+    );
+    await replyWithError(interaction, error, { mode: "editReply", swallow: true, fallbackMessage: "Couldn't reach this server — try again in a moment." });
+    return;
+  }
   const member = await guild.members.fetch(interaction.user.id);
 
   const voiceChannel = member.voice.channel;

@@ -10,6 +10,7 @@ import type { Meeting } from "@meeting-system/contracts";
 import { apiClient } from "../services/api-client.js";
 import { DEFAULT_SELECT_TIMEOUT_MS } from "../ui/constants.js";
 import { replyGuildOnlyError } from "./interaction-guards.js";
+import { logger } from "../logger.js";
 
 type ResolvableInteraction = ChatInputCommandInteraction | ModalSubmitInteraction;
 
@@ -42,7 +43,17 @@ export async function findLiveMeetingForInteraction(
   const liveMeetings = await apiClient.meetings.listActive(interaction.guildId);
   const candidates = liveMeetings.filter((meeting) => requiredStatuses.includes(meeting.status));
 
-  const guild = await interaction.client.guilds.fetch(interaction.guildId);
+  let guild;
+  try {
+    guild = await interaction.client.guilds.fetch(interaction.guildId);
+  } catch (error) {
+    logger.error(
+      { err: error, guildId: interaction.guildId, discordUserId: interaction.user.id },
+      "Failed to fetch guild while resolving live meeting",
+    );
+    await interaction.editReply("Couldn't reach this server — try again in a moment.").catch(() => undefined);
+    return null;
+  }
   const member = await guild.members.fetch(interaction.user.id);
   const voiceChannelId = member.voice.channelId;
   const direct = voiceChannelId ? candidates.find((meeting) => meeting.voiceChannelIds.includes(voiceChannelId)) : undefined;
