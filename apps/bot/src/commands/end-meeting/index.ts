@@ -1,7 +1,7 @@
 import { PermissionFlagsBits, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
 import { apiClient } from "../../services/api-client.js";
 import { untrackMeeting } from "../../services/reconciler.js";
-import { refreshRosterMessage, untrackRosterMessage } from "../../services/roster-message.js";
+import { untrackRosterMessage } from "../../services/roster-message.js";
 import { findLiveMeetingForInteraction } from "../../utils/find-live-meeting.js";
 import { reportEmbed } from "../../ui/embeds/report.embed.js";
 import { replyWithError } from "../../ui/reply-error.js";
@@ -26,9 +26,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       apiClient.meetingTypes.get(meeting.meetingType),
     ]);
 
-    // One last edit so the public roster reflects "Ended" instead of
-    // freezing on its last live snapshot, then stop tracking it.
-    await refreshRosterMessage(meeting.id);
     untrackRosterMessage(meeting.id);
 
     await interaction.editReply({ content: null, embeds: [reportEmbed(meetingType.name, report)], components: [] });

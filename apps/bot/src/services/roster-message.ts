@@ -1,7 +1,17 @@
-import type { Client } from "discord.js";
+import { DiscordAPIError, type Client } from "discord.js";
 import { apiClient } from "./api-client.js";
 import { rosterEmbed } from "../ui/embeds/roster.embed.js";
 import { logger } from "../logger.js";
+
+/**
+ * Discord error codes that mean the tracked channel/message reference is
+ * permanently dead (not a transient network blip): the bot lost access to
+ * the channel, or the channel/message itself is gone. Retrying these every
+ * 60s forever would just spam the log and hit the API for nothing, so on
+ * these codes we stop tracking the ref instead of leaving it for the next
+ * tick to fail again.
+ */
+const PERMANENT_ROSTER_ERROR_CODES = new Set([50001, 10003, 10008]);
 
 interface RosterMessageRef {
   channelId: string;
@@ -51,6 +61,14 @@ export async function refreshRosterMessage(meetingId: string): Promise<void> {
     const message = await channel.messages.fetch(ref.messageId);
     await message.edit({ embeds: [rosterEmbed(ref.meetingTypeName, report)] });
   } catch (error) {
-    logger.warn({ err: error, meetingId }, "Failed to refresh the live roster message");
+    const code = error instanceof DiscordAPIError ? error.code : undefined;
+    logger.warn(
+      { err: error, meetingId, channelId: ref.channelId, messageId: ref.messageId, discordErrorCode: code },
+      "Failed to refresh the live roster message",
+    );
+
+    if (typeof code === "number" && PERMANENT_ROSTER_ERROR_CODES.has(code)) {
+      untrackRosterMessage(meetingId);
+    }
   }
 }

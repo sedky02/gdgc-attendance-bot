@@ -542,7 +542,7 @@ Create an application at the Discord Developer Portal. Under **Bot**, enable:
 
 Required gateway intents in code: `Guilds`, `GuildVoiceStates`, `GuildMembers`.
 
-Invite with scopes `bot` and `applications.commands`, and permissions: View Channels, Send Messages, Use Slash Commands, Connect (to read voice state), Embed Links.
+Invite with scopes `bot` and `applications.commands`, and permissions: View Channels, Send Messages, Read Message History (required to fetch and edit the tracked roster message), Use Slash Commands, Connect (to read voice state), Embed Links.
 
 Under **OAuth2**, add `http://localhost:3000/api/auth/callback/discord` as a redirect for the dashboard.
 
