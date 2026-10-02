@@ -6,6 +6,7 @@ import { AuthModule } from "../auth/auth.module.js";
 import { GuildOwnershipModule } from "../common/guild-ownership.module.js";
 import { Meeting, MeetingSchema } from "./schemas/meeting.schema.js";
 import { MeetingLifecycleService } from "./meeting-lifecycle.service.js";
+import { MeetingKeepAliveService } from "./meeting-keepalive.service.js";
 import { MeetingSweeperService } from "./meeting-sweeper.service.js";
 import { MeetingsController } from "./meetings.controller.js";
 
@@ -18,7 +19,7 @@ import { MeetingsController } from "./meetings.controller.js";
     GuildOwnershipModule,
   ],
   controllers: [MeetingsController],
-  providers: [MeetingLifecycleService, MeetingSweeperService],
+  providers: [MeetingLifecycleService, MeetingSweeperService, MeetingKeepAliveService],
   exports: [MongooseModule, MeetingLifecycleService],
 })
 export class MeetingsModule {}
