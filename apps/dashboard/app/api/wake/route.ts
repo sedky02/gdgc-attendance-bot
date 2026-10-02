@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { createCachedPinger, pingServices } from "@/lib/wake";
 
-// Public on purpose for now (no session required) — see createCachedPinger for
-// the only abuse limit. Always evaluated per request, never statically cached.
+// Always evaluated per request, never statically cached.
 export const dynamic = "force-dynamic";
 
+// Signed-in users only. Repeated calls inside the cache window share one
+// upstream ping (per serverless instance).
 const pingOnce = createCachedPinger(() =>
   pingServices({ bot: process.env.BOT_HEALTH_URL, api: process.env.API_HEALTH_URL }),
 );
 
 export async function POST() {
+  const session = await auth();
+  if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   return NextResponse.json(await pingOnce());
 }

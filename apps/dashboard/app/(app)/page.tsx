@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LiveActiveMeetings } from "@/components/meetings/live-active-meetings";
+import { BotStatusCard } from "@/components/bot/bot-status-card";
 import { formatDateTime } from "@/lib/format";
 
 export default async function OverviewPage() {
@@ -24,6 +25,8 @@ export default async function OverviewPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-slate-900">Overview</h1>
+
+      <BotStatusCard />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>

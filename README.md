@@ -587,7 +587,7 @@ DISCORD_CLIENT_SECRET=
 DISCORD_BOT_TOKEN=          # same token as apps/bot's DISCORD_TOKEN — lists which guilds the bot is in
 API_JWT_SECRET=             # must match apps/api's JWT_SECRET
 NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
-BOT_HEALTH_URL=             # server-only; bot's public URL, hit by the /wake page
+BOT_HEALTH_URL=             # server-only; bot's public URL, hit by the dashboard's Wake bot button
 API_HEALTH_URL=             # server-only; API's public /health URL, same purpose
 ```
 
@@ -681,7 +681,7 @@ Before going live: set a strong `BOT_SERVICE_TOKEN`, restrict `CORS_ORIGIN` to t
 
 Render's free tier gives 750 instance hours a month and suspends a web service after ~15 minutes with no inbound HTTP traffic. The bot's work is a Discord gateway WebSocket, which generates none, and a suspended bot can't receive slash commands or voice events. Three layers keep it awake only when needed:
 
-1. **Wake page (primary).** Open `https://<dashboard>/wake` and press **Wake bot**. It pings the bot and API (via `BOT_HEALTH_URL` / `API_HEALTH_URL` on Vercel) and shows when both are online (usually 30–60 s). Then run `/start-meeting`. The page is public for now; repeated pings are coalesced into one upstream call per 5 seconds.
+1. **Wake button (primary).** In the signed-in dashboard, press **Wake bot** in the sidebar or in the **Bot status** card on the Overview page (the card also appears on the error screen, since a sleeping API makes Overview fail to load). It pings the bot and API via `/api/wake` (using `BOT_HEALTH_URL` / `API_HEALTH_URL` on Vercel; session required) and shows when both are online, usually 30–60 s. Then run `/start-meeting`. Status is never checked on page load, because any request to a sleeping service wakes it. Repeated pings are coalesced into one upstream call per 5 seconds.
 2. **API keep-alive.** While any meeting is `ACTIVE` or `PAUSED`, `MeetingKeepAliveService` pings `BOT_HEALTH_URL` and `API_PUBLIC_URL` every 10 minutes (the API pings itself, or it could sleep and stop pinging the bot). With no live meeting it does nothing, so both services sleep ~15 minutes after the last meeting ends. This covers meetings that run past any external window.
 3. **Optional safety-net window.** In cron-job.org (or UptimeRobot) create one job hitting the bot URL every 10 minutes, scheduled 18:00–00:00 in your local timezone (set the job's timezone; Render runs UTC). That is ~186 h/month per service, ~372 h total, within the 750 budget. Drop it if hours get tight; layers 1 and 2 still work.
 
