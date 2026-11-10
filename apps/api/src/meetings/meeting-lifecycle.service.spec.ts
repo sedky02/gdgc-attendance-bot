@@ -161,6 +161,7 @@ describe("MeetingLifecycleService", () => {
     it("pausing closes every open session so it never spans the pause", async () => {
       const meeting = await service.start(startDto());
       await attendanceModel.create({
+        guildId: "guild-1",
         meeting: meeting.id,
         discordUserId: "user-1",
         usernameSnapshot: "aymen",
@@ -317,6 +318,7 @@ describe("MeetingLifecycleService", () => {
     it("end closes any still-open session so no record outlives the meeting", async () => {
       const meeting = await service.start(startDto());
       await attendanceModel.create({
+        guildId: "guild-1",
         meeting: meeting.id,
         discordUserId: "user-1",
         usernameSnapshot: "aymen",
@@ -337,6 +339,7 @@ describe("MeetingLifecycleService", () => {
     it("cancel closes any still-open session too", async () => {
       const meeting = await service.start(startDto());
       await attendanceModel.create({
+        guildId: "guild-1",
         meeting: meeting.id,
         discordUserId: "user-1",
         usernameSnapshot: "aymen",

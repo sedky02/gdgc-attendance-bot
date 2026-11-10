@@ -74,6 +74,7 @@ describe("ReportsService", () => {
     });
 
     await attendanceModel.create({
+      guildId: "guild-1",
       meeting: meeting._id,
       discordUserId: "user-1",
       usernameSnapshot: "aymen",
@@ -115,6 +116,7 @@ describe("ReportsService", () => {
     });
 
     await attendanceModel.create({
+      guildId: "guild-1",
       meeting: meeting._id,
       discordUserId: "user-1",
       usernameSnapshot: "aymen",

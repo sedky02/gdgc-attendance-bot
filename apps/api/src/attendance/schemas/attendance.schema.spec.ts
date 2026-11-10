@@ -26,6 +26,7 @@ describe("Attendance indexes", () => {
   it("rejects a second attendance document for the same user and meeting", async () => {
     const meeting = new Types.ObjectId();
     const base = {
+      guildId: "guild-1",
       meeting,
       discordUserId: "user-1",
       usernameSnapshot: "aymen",
@@ -40,6 +41,7 @@ describe("Attendance indexes", () => {
 
   it("allows the same user to have attendance documents across different meetings", async () => {
     const base = {
+      guildId: "guild-1",
       discordUserId: "user-1",
       usernameSnapshot: "aymen",
       displayNameSnapshot: "Aymen",

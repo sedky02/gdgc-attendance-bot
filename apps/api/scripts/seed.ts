@@ -108,6 +108,7 @@ async function seed() {
   await AttendanceModel.create([
     // Meeting 1 — Weekly Technical Meeting, 3 of 4 expected members present.
     {
+      guildId: SEED_GUILD_ID,
       meeting: meeting1._id,
       ...aymen,
       expected: true,
@@ -125,6 +126,7 @@ async function seed() {
       },
     },
     {
+      guildId: SEED_GUILD_ID,
       meeting: meeting1._id,
       ...sami,
       expected: true,
@@ -139,6 +141,7 @@ async function seed() {
       },
     },
     {
+      guildId: SEED_GUILD_ID,
       meeting: meeting1._id,
       ...ali,
       expected: true,
@@ -155,6 +158,7 @@ async function seed() {
 
     // Meeting 2 — Officers Sync. Aymen shows up without the Officer role.
     {
+      guildId: SEED_GUILD_ID,
       meeting: meeting2._id,
       ...sami,
       expected: true,
@@ -169,6 +173,7 @@ async function seed() {
       },
     },
     {
+      guildId: SEED_GUILD_ID,
       meeting: meeting2._id,
       ...ali,
       expected: true,
@@ -183,6 +188,7 @@ async function seed() {
       },
     },
     {
+      guildId: SEED_GUILD_ID,
       meeting: meeting2._id,
       ...aymen,
       expected: false,
@@ -199,6 +205,7 @@ async function seed() {
 
     // Meeting 3 — Weekly Technical Meeting, swept closed by the sweeper. Sami and Ali absent.
     {
+      guildId: SEED_GUILD_ID,
       meeting: meeting3._id,
       ...aymen,
       expected: true,
@@ -213,6 +220,7 @@ async function seed() {
       },
     },
     {
+      guildId: SEED_GUILD_ID,
       meeting: meeting3._id,
       ...ahmed,
       expected: true,

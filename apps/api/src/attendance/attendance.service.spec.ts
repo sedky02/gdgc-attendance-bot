@@ -120,6 +120,7 @@ describe("AttendanceService", () => {
     it("edits an existing attendance document's sessions and marks it manually edited", async () => {
       const meetingId = await createMeeting("ACTIVE");
       const doc = await attendanceModel.create({
+        guildId: "guild-1",
         meeting: meetingId,
         discordUserId: "user-1",
         usernameSnapshot: "aymen",

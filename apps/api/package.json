@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.scripts.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "backfill:attendance-guild-id": "tsx scripts/backfill-attendance-guild-id.ts"
   },
   "dependencies": {
     "@meeting-system/contracts": "workspace:*",

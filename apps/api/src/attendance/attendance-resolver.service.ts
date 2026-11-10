@@ -117,7 +117,7 @@ export class AttendanceResolverService {
           manuallyEdited: true,
           editedBy: correction.editedBy,
         },
-        $setOnInsert: { expected, stats: null },
+        $setOnInsert: { guildId: meeting.guildId, expected, stats: null },
       },
       { upsert: true, new: true },
     );
@@ -155,6 +155,7 @@ export class AttendanceResolverService {
         {
           $push: { sessions: { joinedAt: observedAt, leftAt: null, source } },
           $setOnInsert: {
+            guildId: meeting.guildId,
             usernameSnapshot: member.usernameSnapshot,
             displayNameSnapshot: member.displayNameSnapshot,
             expected,

@@ -71,7 +71,20 @@ describe("GuildOwnershipService", () => {
     await expect(service.resolveOwnerGuildId("meeting", meeting._id.toString())).resolves.toBe("guild-1");
   });
 
-  it("resolves an attendance doc's guild via its parent meeting", async () => {
+  it("resolves an attendance doc's guild from its own guildId", async () => {
+    const attendance = await attendanceModel.create({
+      guildId: "guild-7",
+      meeting: new Types.ObjectId(),
+      discordUserId: "user-1",
+      usernameSnapshot: "aymen",
+      displayNameSnapshot: "Aymen",
+      expected: true,
+    });
+
+    await expect(service.resolveOwnerGuildId("attendance", attendance._id.toString())).resolves.toBe("guild-7");
+  });
+
+  it("falls back to the parent meeting for an attendance doc written before guildId existed", async () => {
     const meeting = await meetingModel.create({
       guildId: "guild-1",
       meetingType: new Types.ObjectId(),
@@ -90,19 +103,16 @@ describe("GuildOwnershipService", () => {
       stats: null,
       lastActivityAt: new Date(),
     });
-    const attendance = await attendanceModel.create({
+    const { insertedId } = await attendanceModel.collection.insertOne({
       meeting: meeting._id,
       discordUserId: "user-1",
       usernameSnapshot: "aymen",
       displayNameSnapshot: "Aymen",
       expected: true,
       sessions: [],
-      manuallyEdited: false,
-      editedBy: null,
-      stats: null,
     });
 
-    await expect(service.resolveOwnerGuildId("attendance", attendance._id.toString())).resolves.toBe("guild-1");
+    await expect(service.resolveOwnerGuildId("attendance", insertedId.toString())).resolves.toBe("guild-1");
   });
 
   it("resolves a meeting type's guild directly", async () => {
