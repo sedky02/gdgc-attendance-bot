@@ -6,28 +6,42 @@ import type { Model } from "mongoose";
 import { Logger } from "nestjs-pino";
 import { MeetingSweeperService } from "./meeting-sweeper.service.js";
 import { Meeting, MeetingSchema } from "./schemas/meeting.schema.js";
+import { Attendance, AttendanceSchema } from "../attendance/schemas/attendance.schema.js";
+import { AttendanceResolverService } from "../attendance/attendance-resolver.service.js";
+import { AttendanceStatsService } from "../attendance/attendance-stats.service.js";
 
 describe("MeetingSweeperService", () => {
   let mongod: MongoMemoryServer;
   let sweeper: MeetingSweeperService;
   let meetingModel: Model<Meeting>;
+  let attendanceModel: Model<Attendance>;
 
   beforeAll(async () => {
     mongod = await MongoMemoryServer.create();
 
     const moduleRef = await Test.createTestingModule({
-      imports: [MongooseModule.forRoot(mongod.getUri()), MongooseModule.forFeature([{ name: Meeting.name, schema: MeetingSchema }])],
+      imports: [
+        MongooseModule.forRoot(mongod.getUri()),
+        MongooseModule.forFeature([
+          { name: Meeting.name, schema: MeetingSchema },
+          { name: Attendance.name, schema: AttendanceSchema },
+        ]),
+      ],
       providers: [
         MeetingSweeperService,
+        AttendanceResolverService,
+        AttendanceStatsService,
         { provide: Logger, useValue: { log: vi.fn(), error: vi.fn(), warn: vi.fn() } },
       ],
     }).compile();
 
     sweeper = moduleRef.get(MeetingSweeperService);
     meetingModel = moduleRef.get(getModelToken(Meeting.name));
+    attendanceModel = moduleRef.get(getModelToken(Attendance.name));
   });
 
   afterEach(async () => {
+    await attendanceModel.deleteMany({});
     await meetingModel.deleteMany({});
   });
 
@@ -154,5 +168,40 @@ describe("MeetingSweeperService", () => {
 
     const untouched = await meetingModel.findById(meeting._id);
     expect(untouched?.status).toBe("ACTIVE");
+  });
+
+  it("closes open sessions and freezes stats when it ends an abandoned meeting", async () => {
+    const startedAt = new Date(Date.now() - 60 * 60 * 1000);
+    const lastActivityAt = new Date(Date.now() - 20 * 60 * 1000);
+    const meeting = await meetingModel.create({
+      ...baseMeeting,
+      voiceChannelIds: ["channel-abandoned-open-session"],
+      status: "ACTIVE",
+      startedAt,
+      lastActivityAt,
+      expectedMembers: [{ discordUserId: "user-1", usernameSnapshot: "user1", roleIds: [] }],
+    });
+    await attendanceModel.create({
+      meeting: meeting._id,
+      discordUserId: "user-1",
+      usernameSnapshot: "user1",
+      displayNameSnapshot: "User One",
+      expected: true,
+      sessions: [{ joinedAt: startedAt, leftAt: null, source: "EVENT" }],
+      manuallyEdited: false,
+      editedBy: null,
+      stats: null,
+    });
+
+    await sweeper.sweep();
+
+    const swept = await meetingModel.findById(meeting._id);
+    const attendance = await attendanceModel.findOne({ meeting: meeting._id });
+    const expectedDurationMs = lastActivityAt.getTime() - startedAt.getTime();
+
+    expect(swept?.status).toBe("COMPLETED");
+    expect(swept?.stats).toMatchObject({ presentCount: 1, expectedCount: 1, durationMs: expectedDurationMs });
+    expect(attendance?.sessions[0].leftAt).toEqual(lastActivityAt);
+    expect(attendance?.stats).toMatchObject({ totalDurationMs: expectedDurationMs, sessionCount: 1, latenessMs: 0 });
   });
 });
