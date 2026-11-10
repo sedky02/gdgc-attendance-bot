@@ -3,6 +3,8 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { InjectModel } from "@nestjs/mongoose";
 import type { Model } from "mongoose";
 import { Logger } from "nestjs-pino";
+import { AttendanceResolverService } from "../attendance/attendance-resolver.service.js";
+import { AttendanceStatsService } from "../attendance/attendance-stats.service.js";
 import { Meeting } from "./schemas/meeting.schema.js";
 
 const LIVE_STATUSES = ["ACTIVE", "PAUSED"] as const;
@@ -13,6 +15,8 @@ const EMPTY_TIMEOUT_MS = 15 * 60 * 1000;
 export class MeetingSweeperService {
   constructor(
     @InjectModel(Meeting.name) private readonly meetingModel: Model<Meeting>,
+    @Inject(AttendanceResolverService) private readonly attendanceResolver: AttendanceResolverService,
+    @Inject(AttendanceStatsService) private readonly attendanceStatsService: AttendanceStatsService,
     @Inject(Logger) private readonly logger: Logger,
   ) {}
 
@@ -37,6 +41,7 @@ export class MeetingSweeperService {
         { status: "COMPLETED", endedBy: "SYSTEM", endedAt },
       );
       if (result.modifiedCount > 0) {
+        await this.finalizeAttendance(meeting._id.toString(), endedAt);
         this.logger.log(
           { meetingId: meeting._id.toString() },
           "Sweeper ended meeting: 12-hour hard cap reached",
@@ -53,16 +58,25 @@ export class MeetingSweeperService {
     });
 
     for (const meeting of candidates) {
+      const endedAt = meeting.lastActivityAt;
+      if (!endedAt) continue;
       const result = await this.meetingModel.updateOne(
         { _id: meeting._id, status: "ACTIVE" },
-        { status: "COMPLETED", endedBy: "SYSTEM", endedAt: meeting.lastActivityAt },
+        { status: "COMPLETED", endedBy: "SYSTEM", endedAt },
       );
       if (result.modifiedCount > 0) {
+        await this.finalizeAttendance(meeting._id.toString(), endedAt);
         this.logger.log(
           { meetingId: meeting._id.toString() },
           "Sweeper ended meeting: channel empty for 15+ minutes",
         );
       }
     }
+  }
+
+  // Same finalization /end-meeting performs, so a swept meeting reports like any other.
+  private async finalizeAttendance(meetingId: string, endedAt: Date): Promise<void> {
+    await this.attendanceResolver.closeAllOpenSessions(meetingId, endedAt);
+    await this.attendanceStatsService.freezeStats(meetingId, endedAt);
   }
 }
