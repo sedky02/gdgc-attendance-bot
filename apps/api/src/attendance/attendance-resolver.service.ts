@@ -9,6 +9,8 @@ interface MongoDuplicateKeyError {
   code: number;
 }
 
+const openSessionJoinedBy = (observedAt: Date) => ({ leftAt: null, joinedAt: { $lte: observedAt } });
+
 function isDuplicateKeyError(error: unknown): error is MongoDuplicateKeyError {
   return typeof error === "object" && error !== null && (error as { code?: unknown }).code === 11000;
 }
@@ -45,30 +47,30 @@ export class AttendanceResolverService {
     }
 
     if (presentMembers.length > 0) {
-      await this.meetingModel.updateOne({ _id: meetingId }, { lastActivityAt: observedAt });
+      await this.touchLastActivity(meetingId, observedAt);
     }
   }
 
   /**
-   * A single user's departure only carries one ID — there's no roster to
-   * diff against. We derive "everyone who should stay open" from our own
-   * currently-open sessions (excluding the one who left) and delegate to
-   * resolvePresence's FULL-scope closing, which then closes exactly that
-   * one person without touching anyone else.
+   * Closes exactly one user's open session. Deliberately not derived from a
+   * roster diff: a departure says nothing about anyone else, so it must not
+   * be able to close a user whose join is being written at the same moment.
    */
-  async resolveDeparture(meetingId: string, discordUserId: string, observedAt: Date, source: SessionSource): Promise<void> {
-    const openDocs = await this.attendanceModel.find(
-      { meeting: meetingId, "sessions.leftAt": null, discordUserId: { $ne: discordUserId } },
-      "discordUserId usernameSnapshot displayNameSnapshot",
+  async resolveDeparture(meetingId: string, discordUserId: string, observedAt: Date): Promise<void> {
+    const meeting = await this.meetingModel.findById(meetingId, "status");
+    if (!meeting || meeting.status !== "ACTIVE") {
+      return;
+    }
+
+    const result = await this.attendanceModel.updateOne(
+      { meeting: meetingId, discordUserId, sessions: { $elemMatch: openSessionJoinedBy(observedAt) } },
+      { $set: { "sessions.$[open].leftAt": observedAt } },
+      { arrayFilters: [{ "open.leftAt": null }] },
     );
 
-    const presentMembers: PresentMember[] = openDocs.map((doc) => ({
-      discordUserId: doc.discordUserId,
-      usernameSnapshot: doc.usernameSnapshot,
-      displayNameSnapshot: doc.displayNameSnapshot,
-    }));
-
-    await this.resolvePresence(meetingId, { presentMembers, observedAt, scope: "FULL", source });
+    if (result.modifiedCount > 0) {
+      await this.touchLastActivity(meetingId, observedAt);
+    }
   }
 
   /**
@@ -78,11 +80,27 @@ export class AttendanceResolverService {
    * external event that should be ignored while paused.
    */
   async closeAllOpenSessions(meetingId: string, observedAt: Date): Promise<void> {
-    await this.attendanceModel.updateMany(
-      { meeting: meetingId, "sessions.leftAt": null },
-      { $set: { "sessions.$[open].leftAt": observedAt } },
-      { arrayFilters: [{ "open.leftAt": null }] },
-    );
+    // A session that opened after `observedAt` (a backdated sweeper end) closes
+    // at its own joinedAt, so no duration can come out negative.
+    await this.attendanceModel.updateMany({ meeting: meetingId, "sessions.leftAt": null }, [
+      {
+        $set: {
+          sessions: {
+            $map: {
+              input: "$sessions",
+              as: "session",
+              in: {
+                $cond: [
+                  { $eq: ["$$session.leftAt", null] },
+                  { $mergeObjects: ["$$session", { leftAt: { $max: ["$$session.joinedAt", observedAt] } }] },
+                  "$$session",
+                ],
+              },
+            },
+          },
+        },
+      },
+    ]);
   }
 
   /** A lead's correction replaces one attendee's session list wholesale, creating the record if the bot never saw them. */
@@ -109,6 +127,12 @@ export class AttendanceResolverService {
     return this.attendanceModel.findByIdAndUpdate(attendanceId, { sessions, manuallyEdited: true, editedBy }, { new: true });
   }
 
+  /**
+   * One atomic upsert. The filter only matches a document with no open
+   * session and nothing recorded after `observedAt`; when the document exists
+   * but fails that precondition, the upsert's insert attempt hits the unique
+   * (meeting, discordUserId) index, and that duplicate-key error is the no-op.
+   */
   private async openSessionIfNone(
     meeting: MeetingDocument,
     member: PresentMember,
@@ -119,13 +143,21 @@ export class AttendanceResolverService {
 
     try {
       await this.attendanceModel.updateOne(
-        { meeting: meeting._id, discordUserId: member.discordUserId },
         {
+          meeting: meeting._id,
+          discordUserId: member.discordUserId,
+          sessions: {
+            $not: {
+              $elemMatch: { $or: [{ leftAt: null }, { leftAt: { $gt: observedAt } }, { joinedAt: { $gt: observedAt } }] },
+            },
+          },
+        },
+        {
+          $push: { sessions: { joinedAt: observedAt, leftAt: null, source } },
           $setOnInsert: {
             usernameSnapshot: member.usernameSnapshot,
             displayNameSnapshot: member.displayNameSnapshot,
             expected,
-            sessions: [],
             manuallyEdited: false,
             editedBy: null,
             stats: null,
@@ -137,43 +169,23 @@ export class AttendanceResolverService {
       if (!isDuplicateKeyError(error)) {
         throw error;
       }
-      // A concurrent open beat us to creating the document — fine, continue.
     }
-
-    const doc = await this.attendanceModel.findOne({ meeting: meeting._id, discordUserId: member.discordUserId }, "sessions");
-    if (!doc) {
-      return;
-    }
-
-    if (doc.sessions.some((session) => session.leftAt === null)) {
-      return;
-    }
-
-    const lastSession = doc.sessions[doc.sessions.length - 1];
-    if (lastSession && lastSession.leftAt !== null && lastSession.leftAt > observedAt) {
-      return;
-    }
-
-    await this.attendanceModel.updateOne(
-      { _id: doc._id, sessions: { $not: { $elemMatch: { leftAt: null } } } },
-      { $push: { sessions: { joinedAt: observedAt, leftAt: null, source } } },
-    );
   }
 
   private async closeSessionsNotIn(meetingId: string, presentIds: Set<string>, observedAt: Date): Promise<void> {
-    const openDocs = await this.attendanceModel.find({ meeting: meetingId, "sessions.leftAt": null }, "discordUserId sessions");
+    await this.attendanceModel.updateMany(
+      {
+        meeting: meetingId,
+        discordUserId: { $nin: [...presentIds] },
+        sessions: { $elemMatch: openSessionJoinedBy(observedAt) },
+      },
+      { $set: { "sessions.$[open].leftAt": observedAt } },
+      { arrayFilters: [{ "open.leftAt": null }] },
+    );
+  }
 
-    for (const doc of openDocs) {
-      if (presentIds.has(doc.discordUserId)) {
-        continue;
-      }
-
-      const openSession = doc.sessions.find((session) => session.leftAt === null);
-      if (!openSession || observedAt < openSession.joinedAt) {
-        continue;
-      }
-
-      await this.attendanceModel.updateOne({ _id: doc._id, "sessions.leftAt": null }, { $set: { "sessions.$.leftAt": observedAt } });
-    }
+  // $max keeps a late-arriving older observation from moving the sweeper's clock backwards.
+  private async touchLastActivity(meetingId: string, observedAt: Date): Promise<void> {
+    await this.meetingModel.updateOne({ _id: meetingId }, { $max: { lastActivityAt: observedAt } });
   }
 }
