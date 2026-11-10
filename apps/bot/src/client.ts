@@ -2,6 +2,7 @@ import { Client, Collection, GatewayIntentBits, type ChatInputCommandInteraction
 import * as pingCommand from "./commands/ping/index.js";
 import * as createMeetingTypeCommand from "./commands/create-meeting-type/index.js";
 import * as editMeetingTypeCommand from "./commands/edit-meeting-type/index.js";
+import * as deleteMeetingTypeCommand from "./commands/delete-meeting-type/index.js";
 import * as startMeetingCommand from "./commands/start-meeting/index.js";
 import * as pauseMeetingCommand from "./commands/pause-meeting/index.js";
 import * as resumeMeetingCommand from "./commands/resume-meeting/index.js";
@@ -19,6 +20,7 @@ export const commands = new Collection<string, Command>(
     pingCommand,
     createMeetingTypeCommand,
     editMeetingTypeCommand,
+    deleteMeetingTypeCommand,
     startMeetingCommand,
     pauseMeetingCommand,
     resumeMeetingCommand,
