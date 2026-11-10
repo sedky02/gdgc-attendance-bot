@@ -17,8 +17,6 @@ export const EnvSchema = z
     MONGODB_URI: z.string().min(1),
     JWT_SECRET: z.string().min(32),
     BOT_SERVICE_TOKEN: z.string().min(32),
-    DISCORD_CLIENT_ID: z.string().min(1),
-    DISCORD_CLIENT_SECRET: z.string().min(1),
     CORS_ORIGIN: z.string().min(1),
     // The Swagger UI enumerates every route and its auth scheme, so it's off
     // by default in production. Set it explicitly to override either way.

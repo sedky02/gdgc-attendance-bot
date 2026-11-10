@@ -560,8 +560,6 @@ PORT=3001
 MONGODB_URI=mongodb://root:root@localhost:27017/meetings?authSource=admin
 JWT_SECRET=                  # openssl rand -base64 32
 BOT_SERVICE_TOKEN=           # openssl rand -hex 32, must match the bot
-DISCORD_CLIENT_ID=
-DISCORD_CLIENT_SECRET=
 CORS_ORIGIN=http://localhost:3000
 SWAGGER_ENABLED=             # "true" or "false"; defaults to true unless NODE_ENV=production
 BOT_HEALTH_URL=              # optional; bot's public URL, pinged while a meeting is live (see "Running on Render's free tier")
