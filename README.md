@@ -326,6 +326,7 @@ The sweeper runs every 5 minutes and auto-ends any meeting whose channels have b
 |---|---|---|
 | `/create-meeting-type` | manager | Creates a MeetingType. Modal for the name, native role select for roles. |
 | `/edit-meeting-type` | manager | Edits name and roles. Affects future meetings only. |
+| `/delete-meeting-type` | manager | Archives a type so it can no longer start meetings. Past meetings keep their records. |
 | `/start-meeting` | manager | Detects your current voice channel, prompts for a type, snapshots expected members, opens sessions for whoever is already present. |
 | `/pause-meeting` | manager | `ACTIVE → PAUSED`. Closes all open sessions. |
 | `/resume-meeting` | manager | `PAUSED → ACTIVE`. Re-opens sessions for current occupants. |
