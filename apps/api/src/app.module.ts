@@ -10,6 +10,7 @@ import { MeetingTypesModule } from "./meeting-types/meeting-types.module.js";
 import { MeetingsModule } from "./meetings/meetings.module.js";
 import { AttendanceModule } from "./attendance/attendance.module.js";
 import { ReportsModule } from "./reports/reports.module.js";
+import { REDACTED_REQUEST_LOG_PATHS } from "./common/logging/request-log-redaction.js";
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ReportsModule } from "./reports/reports.module.js";
             ? { target: "pino-pretty", options: { singleLine: true } }
             : undefined,
         autoLogging: true,
+        redact: REDACTED_REQUEST_LOG_PATHS,
       },
     }),
     DatabaseModule,
