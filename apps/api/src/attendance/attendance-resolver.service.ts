@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import type { Model } from "mongoose";
-import type { PresentMember, ResolvePresenceParams, SessionSource } from "@meeting-system/contracts";
-import { Attendance } from "./schemas/attendance.schema.js";
+import type { ManualAttendanceDto, PresentMember, ResolvePresenceParams, Session, SessionSource } from "@meeting-system/contracts";
+import { Attendance, type AttendanceDocument } from "./schemas/attendance.schema.js";
 import { Meeting, type MeetingDocument } from "../meetings/schemas/meeting.schema.js";
 
 interface MongoDuplicateKeyError {
@@ -83,6 +83,30 @@ export class AttendanceResolverService {
       { $set: { "sessions.$[open].leftAt": observedAt } },
       { arrayFilters: [{ "open.leftAt": null }] },
     );
+  }
+
+  /** A lead's correction replaces one attendee's session list wholesale, creating the record if the bot never saw them. */
+  async applyManualCorrection(meeting: MeetingDocument, correction: ManualAttendanceDto): Promise<AttendanceDocument> {
+    const expected = meeting.expectedMembers.some((member) => member.discordUserId === correction.discordUserId);
+
+    return this.attendanceModel.findOneAndUpdate(
+      { meeting: meeting._id, discordUserId: correction.discordUserId },
+      {
+        $set: {
+          usernameSnapshot: correction.usernameSnapshot,
+          displayNameSnapshot: correction.displayNameSnapshot,
+          sessions: correction.sessions,
+          manuallyEdited: true,
+          editedBy: correction.editedBy,
+        },
+        $setOnInsert: { expected, stats: null },
+      },
+      { upsert: true, new: true },
+    );
+  }
+
+  async replaceSessions(attendanceId: string, sessions: Session[], editedBy: string): Promise<AttendanceDocument | null> {
+    return this.attendanceModel.findByIdAndUpdate(attendanceId, { sessions, manuallyEdited: true, editedBy }, { new: true });
   }
 
   private async openSessionIfNone(
