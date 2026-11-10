@@ -6,6 +6,7 @@ import { Attendance } from "./schemas/attendance.schema.js";
 import { Meeting } from "../meetings/schemas/meeting.schema.js";
 import { toAttendanceDto } from "./attendance.mapper.js";
 import { AttendanceStatsService } from "./attendance-stats.service.js";
+import { AttendanceResolverService } from "./attendance-resolver.service.js";
 
 @Injectable()
 export class AttendanceService {
@@ -13,6 +14,7 @@ export class AttendanceService {
     @InjectModel(Attendance.name) private readonly attendanceModel: Model<Attendance>,
     @InjectModel(Meeting.name) private readonly meetingModel: Model<Meeting>,
     @Inject(AttendanceStatsService) private readonly attendanceStatsService: AttendanceStatsService,
+    @Inject(AttendanceResolverService) private readonly attendanceResolver: AttendanceResolverService,
   ) {}
 
   async listForMeeting(meetingId: string): Promise<AttendanceDto[]> {
@@ -27,33 +29,14 @@ export class AttendanceService {
       throw new NotFoundException(`Meeting ${meetingId} not found`);
     }
 
-    const expected = meeting.expectedMembers.some((member) => member.discordUserId === dto.discordUserId);
-
-    const doc = await this.attendanceModel.findOneAndUpdate(
-      { meeting: meetingId, discordUserId: dto.discordUserId },
-      {
-        $set: {
-          usernameSnapshot: dto.usernameSnapshot,
-          displayNameSnapshot: dto.displayNameSnapshot,
-          sessions: dto.sessions,
-          manuallyEdited: true,
-          editedBy: dto.editedBy,
-        },
-        $setOnInsert: { meeting: meetingId, discordUserId: dto.discordUserId, expected, stats: null },
-      },
-      { upsert: true, new: true },
-    );
+    const doc = await this.attendanceResolver.applyManualCorrection(meeting, dto);
 
     await this.refreezeIfCompleted(meeting);
     return toAttendanceDto(doc);
   }
 
   async updateSession(attendanceId: string, dto: UpdateAttendanceDto): Promise<AttendanceDto> {
-    const doc = await this.attendanceModel.findByIdAndUpdate(
-      attendanceId,
-      { sessions: dto.sessions, manuallyEdited: true, editedBy: dto.editedBy },
-      { new: true },
-    );
+    const doc = await this.attendanceResolver.replaceSessions(attendanceId, dto.sessions, dto.editedBy);
     if (!doc) {
       throw new NotFoundException(`Attendance ${attendanceId} not found`);
     }

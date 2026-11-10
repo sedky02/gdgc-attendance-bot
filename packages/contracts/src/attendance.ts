@@ -18,6 +18,27 @@ export const SessionSchema = z.object({
 });
 export type Session = z.infer<typeof SessionSchema>;
 
+// Stats sum (leftAt - joinedAt) and read sessions[0] as the first join, so a
+// hand-entered list must be chronological, non-overlapping, and open only at the end.
+export const SessionListSchema = z.array(SessionSchema).superRefine((sessions, ctx) => {
+  sessions.forEach((session, index) => {
+    if (session.leftAt !== null && session.leftAt < session.joinedAt) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index, "leftAt"], message: "A session cannot end before it starts" });
+    }
+    if (session.leftAt === null && index !== sessions.length - 1) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index, "leftAt"], message: "Only the last session may still be open" });
+    }
+    const previous = sessions[index - 1];
+    if (previous && previous.leftAt !== null && session.joinedAt < previous.leftAt) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [index, "joinedAt"],
+        message: "Sessions must be in chronological order and must not overlap",
+      });
+    }
+  });
+});
+
 export const AttendanceStatsSchema = z.object({
   firstJoinedAt: z.coerce.date(),
   latenessMs: z.number().int().nonnegative(),
@@ -61,13 +82,13 @@ export const ManualAttendanceDto = z.object({
   discordUserId: z.string(),
   usernameSnapshot: z.string(),
   displayNameSnapshot: z.string(),
-  sessions: z.array(SessionSchema),
+  sessions: SessionListSchema,
   editedBy: z.string(),
 });
 export type ManualAttendanceDto = z.infer<typeof ManualAttendanceDto>;
 
 export const UpdateAttendanceDto = z.object({
-  sessions: z.array(SessionSchema),
+  sessions: SessionListSchema,
   editedBy: z.string(),
 });
 export type UpdateAttendanceDto = z.infer<typeof UpdateAttendanceDto>;

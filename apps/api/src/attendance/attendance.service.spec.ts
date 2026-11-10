@@ -7,6 +7,7 @@ import { NotFoundException } from "@nestjs/common";
 import { Types } from "mongoose";
 import { AttendanceService } from "./attendance.service.js";
 import { AttendanceStatsService } from "./attendance-stats.service.js";
+import { AttendanceResolverService } from "./attendance-resolver.service.js";
 import { Attendance, AttendanceSchema } from "./schemas/attendance.schema.js";
 import { Meeting, MeetingSchema } from "../meetings/schemas/meeting.schema.js";
 
@@ -27,7 +28,7 @@ describe("AttendanceService", () => {
           { name: Meeting.name, schema: MeetingSchema },
         ]),
       ],
-      providers: [AttendanceService, AttendanceStatsService],
+      providers: [AttendanceService, AttendanceStatsService, AttendanceResolverService],
     }).compile();
 
     service = moduleRef.get(AttendanceService);
