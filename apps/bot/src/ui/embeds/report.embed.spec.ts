@@ -122,4 +122,38 @@ describe("reportEmbed", () => {
     const embed = reportEmbed("Weekly", buildReport({ absentees: [] }));
     expect(embed.data.fields?.some((field) => field.name.startsWith("Absent"))).toBe(false);
   });
+
+  it("stays within Discord's embed limits for a 200-person meeting", () => {
+    const joinedAt = new Date("2026-08-16T19:05:00Z");
+    const attendance = Array.from({ length: 200 }, (_, i) => ({
+      id: `attendance-${i}`,
+      meeting: "meeting-1",
+      discordUserId: `user-${i}`,
+      usernameSnapshot: `member_with_a_long_username_${i}`,
+      displayNameSnapshot: `Member With A Long Display Name ${i}`,
+      expected: i % 2 === 0,
+      sessions: [{ joinedAt, leftAt: new Date("2026-08-16T20:35:00Z"), source: "EVENT" as const }],
+      manuallyEdited: false,
+      editedBy: null,
+      stats: { firstJoinedAt: joinedAt, latenessMs: 300_000, totalDurationMs: 5_400_000, sessionCount: 2 },
+    }));
+    const absentees = Array.from({ length: 200 }, (_, i) => ({
+      discordUserId: `absent-${i}`,
+      usernameSnapshot: `absent_member_with_a_long_username_${i}`,
+      roleIds: [],
+    }));
+
+    const embed = reportEmbed("Weekly Technical Meeting", buildReport({ attendance, absentees }));
+
+    const fields = embed.data.fields ?? [];
+    const totalLength =
+      (embed.data.title?.length ?? 0) +
+      (embed.data.description?.length ?? 0) +
+      fields.reduce((sum, field) => sum + field.name.length + field.value.length, 0);
+
+    expect(embed.data.description?.length ?? 0).toBeLessThanOrEqual(4096);
+    expect(fields.every((field) => field.value.length <= 1024)).toBe(true);
+    expect(fields.length).toBeLessThanOrEqual(25);
+    expect(totalLength).toBeLessThanOrEqual(6000);
+  });
 });
