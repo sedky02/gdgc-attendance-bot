@@ -517,8 +517,9 @@ Note what `apps/bot` does not contain: a `models/` directory or a database conne
 Requires Node 20+, pnpm 9+, Docker, and a Discord application.
 
 ```bash
-git clone <repo-url> && cd meeting-system
+git clone https://github.com/sedky02/gdgc-attendance-bot.git && cd gdgc-attendance-bot
 pnpm install
+pnpm build                                             # builds packages/contracts, which every app imports
 
 docker compose -f infra/docker-compose.yml up -d      # mongo on :27017
 
@@ -658,7 +659,7 @@ The bot and API are long-running processes and cannot go on Vercel — the bot h
 **One-time setup on the VM:**
 
 ```bash
-git clone <repo-url> && cd meeting-system
+git clone https://github.com/sedky02/gdgc-attendance-bot.git && cd gdgc-attendance-bot
 cp infra/.env.example infra/.env               # API_DOMAIN=api.yourdomain.com
 cp infra/.env.api.example infra/.env.api       # fill in production secrets
 cp infra/.env.bot.example infra/.env.bot       # fill in production secrets
