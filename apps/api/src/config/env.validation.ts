@@ -4,8 +4,11 @@ import { z } from "zod";
 // coerces to `true`. Parse the two accepted literals explicitly instead.
 const envBoolean = z.enum(["true", "false"]).transform((value) => value === "true");
 
-// A blank `KEY=` line in a .env file arrives as "", which isn't a URL.
-const optionalUrl = z.preprocess((value) => (value === "" ? undefined : value), z.string().url().optional());
+// A blank `KEY=` line in a .env file arrives as "", which must read as unset.
+const blankAsUnset = (value: unknown) => (value === "" ? undefined : value);
+
+const optionalUrl = z.preprocess(blankAsUnset, z.string().url().optional());
+const optionalBoolean = z.preprocess(blankAsUnset, envBoolean.optional());
 
 export const EnvSchema = z
   .object({
@@ -24,7 +27,7 @@ export const EnvSchema = z
     // optional: unset (local dev, non-Render hosts) disables that ping.
     BOT_HEALTH_URL: optionalUrl,
     API_PUBLIC_URL: optionalUrl,
-    SWAGGER_ENABLED: envBoolean.optional(),
+    SWAGGER_ENABLED: optionalBoolean,
   })
   .transform((env) => ({
     ...env,
