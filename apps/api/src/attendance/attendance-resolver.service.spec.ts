@@ -193,7 +193,7 @@ describe("AttendanceResolverService", () => {
         source: "EVENT",
       });
 
-      await resolver.resolveDeparture(meetingId, aymen.discordUserId, new Date("2026-08-16T20:00:00Z"), "EVENT");
+      await resolver.resolveDeparture(meetingId, aymen.discordUserId, new Date("2026-08-16T20:00:00Z"));
 
       const doc = await attendanceModel.findOne({ meeting: meetingId, discordUserId: aymen.discordUserId });
       expect(doc?.sessions).toHaveLength(1);
@@ -208,7 +208,7 @@ describe("AttendanceResolverService", () => {
         source: "SYNC",
       });
 
-      await resolver.resolveDeparture(meetingId, aymen.discordUserId, new Date("2026-08-16T19:30:00Z"), "EVENT");
+      await resolver.resolveDeparture(meetingId, aymen.discordUserId, new Date("2026-08-16T19:30:00Z"));
 
       const sessions = await openSessions(meetingId);
       expect(sessions.find((s) => s.discordUserId === aymen.discordUserId)?.open).toBe(false);
@@ -338,7 +338,7 @@ describe("AttendanceResolverService", () => {
       });
 
       const moveAt = new Date("2026-08-16T19:15:00Z");
-      await resolver.resolveDeparture(meetingA, aymen.discordUserId, moveAt, "EVENT");
+      await resolver.resolveDeparture(meetingA, aymen.discordUserId, moveAt);
       await resolver.resolvePresence(meetingB, {
         presentMembers: [aymen],
         observedAt: moveAt,
@@ -368,6 +368,85 @@ describe("AttendanceResolverService", () => {
 
       const sessions = await openSessions(meetingId);
       expect(sessions.every((s) => !s.open)).toBe(true);
+    });
+  });
+
+  describe("ordering and concurrency", () => {
+    const join = (member: typeof aymen, time: string) =>
+      resolver.resolvePresence(meetingId, {
+        presentMembers: [member],
+        observedAt: new Date(time),
+        scope: "PARTIAL",
+        source: "EVENT",
+      });
+
+    it("twenty concurrent joins for one user still produce exactly one open session", async () => {
+      await Promise.all(Array.from({ length: 20 }, (_, i) => join(aymen, `2026-08-16T19:02:${String(i).padStart(2, "0")}Z`)));
+
+      const docs = await attendanceModel.find({ meeting: meetingId, discordUserId: aymen.discordUserId });
+      expect(docs).toHaveLength(1);
+      expect(docs[0].sessions).toHaveLength(1);
+    });
+
+    it("discards a late-arriving join that predates the last closed session", async () => {
+      await join(aymen, "2026-08-16T19:00:00Z");
+      await resolver.resolveDeparture(meetingId, aymen.discordUserId, new Date("2026-08-16T19:30:00Z"));
+
+      await join(aymen, "2026-08-16T19:10:00Z");
+
+      const doc = await attendanceModel.findOne({ meeting: meetingId, discordUserId: aymen.discordUserId });
+      expect(doc?.sessions).toHaveLength(1);
+      expect(doc?.sessions[0].leftAt).toEqual(new Date("2026-08-16T19:30:00Z"));
+    });
+
+    it("a departure racing another user's join never closes the newcomer", async () => {
+      await join(aymen, "2026-08-16T19:00:00Z");
+
+      await Promise.all([
+        resolver.resolveDeparture(meetingId, aymen.discordUserId, new Date("2026-08-16T19:30:00Z")),
+        join(sami, "2026-08-16T19:29:59Z"),
+      ]);
+
+      const sessions = await openSessions(meetingId);
+      expect(sessions.find((s) => s.discordUserId === aymen.discordUserId)?.open).toBe(false);
+      expect(sessions.find((s) => s.discordUserId === sami.discordUserId)?.open).toBe(true);
+    });
+
+    it("ignores a departure whose observedAt predates the open session", async () => {
+      await join(aymen, "2026-08-16T19:10:00Z");
+
+      await resolver.resolveDeparture(meetingId, aymen.discordUserId, new Date("2026-08-16T19:05:00Z"));
+
+      const sessions = await openSessions(meetingId);
+      expect(sessions[0].open).toBe(true);
+    });
+
+    it("ignores a departure while the meeting is PAUSED", async () => {
+      await join(aymen, "2026-08-16T19:00:00Z");
+      await meetingModel.updateOne({ _id: meetingId }, { status: "PAUSED" });
+
+      await resolver.resolveDeparture(meetingId, aymen.discordUserId, new Date("2026-08-16T19:30:00Z"));
+
+      const sessions = await openSessions(meetingId);
+      expect(sessions[0].open).toBe(true);
+    });
+
+    it("a departure advances lastActivityAt, and an older observation never moves it back", async () => {
+      await join(aymen, "2026-08-16T19:00:00Z");
+      await resolver.resolveDeparture(meetingId, aymen.discordUserId, new Date("2026-08-16T19:30:00Z"));
+      await join(sami, "2026-08-16T19:20:00Z");
+
+      const meeting = await meetingModel.findById(meetingId);
+      expect(meeting?.lastActivityAt).toEqual(new Date("2026-08-16T19:30:00Z"));
+    });
+
+    it("closeAllOpenSessions never writes a leftAt earlier than joinedAt", async () => {
+      await join(aymen, "2026-08-16T19:40:00Z");
+
+      await resolver.closeAllOpenSessions(meetingId, new Date("2026-08-16T19:30:00Z"));
+
+      const doc = await attendanceModel.findOne({ meeting: meetingId, discordUserId: aymen.discordUserId });
+      expect(doc?.sessions[0].leftAt).toEqual(new Date("2026-08-16T19:40:00Z"));
     });
   });
 });

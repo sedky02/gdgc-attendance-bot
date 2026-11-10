@@ -20,7 +20,7 @@ export class InternalService {
     if (dto.from) {
       const meetingId = await this.meetingLifecycleService.findActiveMeetingId(dto.guildId, dto.from);
       if (meetingId) {
-        await this.attendanceResolver.resolveDeparture(meetingId, dto.discordUserId, dto.occurredAt, "EVENT");
+        await this.attendanceResolver.resolveDeparture(meetingId, dto.discordUserId, dto.occurredAt);
       }
     }
 
