@@ -182,6 +182,7 @@ describe("MeetingSweeperService", () => {
       expectedMembers: [{ discordUserId: "user-1", usernameSnapshot: "user1", roleIds: [] }],
     });
     await attendanceModel.create({
+      guildId: "guild-1",
       meeting: meeting._id,
       discordUserId: "user-1",
       usernameSnapshot: "user1",

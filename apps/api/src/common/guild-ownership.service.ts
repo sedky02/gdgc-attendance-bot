@@ -24,10 +24,14 @@ export class GuildOwnershipService {
 
   async resolveOwnerGuildId(resourceType: ResourceTypeValue, id: string): Promise<string | undefined> {
     if (resourceType === "attendance") {
-      const attendance = await this.attendanceModel.findById(id, "meeting").catch(() => null);
+      const attendance = await this.attendanceModel.findById(id, "guildId meeting").catch(() => null);
       if (!attendance) {
         return undefined;
       }
+      if (attendance.guildId) {
+        return attendance.guildId;
+      }
+      // Records written before guildId existed, until scripts/backfill-attendance-guild-id.ts has run.
       const meeting = await this.meetingModel.findById(attendance.meeting, "guildId").catch(() => null);
       return meeting?.guildId;
     }

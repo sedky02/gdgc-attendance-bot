@@ -33,6 +33,10 @@ export const AttendanceStatsSchema = SchemaFactory.createForClass(AttendanceStat
 
 @Schema()
 export class Attendance {
+  // Copied from the parent meeting at write time so guild-scoped queries need no join.
+  @Prop({ type: String, required: true })
+  guildId: string;
+
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: "Meeting", required: true })
   meeting: Types.ObjectId;
 
