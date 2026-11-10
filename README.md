@@ -417,7 +417,7 @@ meeting-system/
 │   │       ├── app.module.ts
 │   │       ├── config/                  # zod-validated env, mongoose setup
 │   │       ├── common/
-│   │       │   ├── guards/              # ServiceTokenGuard, JwtGuard, GuildRoleGuard
+│   │       │   ├── guards/              # ServiceTokenGuard, ServiceOrJwtGuard
 │   │       │   ├── decorators/          # @CurrentUser, @ServiceOnly
 │   │       │   ├── filters/
 │   │       │   └── pipes/               # ZodValidationPipe
