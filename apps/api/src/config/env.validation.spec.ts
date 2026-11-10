@@ -5,8 +5,6 @@ const required = {
   MONGODB_URI: "mongodb://localhost:27017/meetings",
   JWT_SECRET: "a".repeat(32),
   BOT_SERVICE_TOKEN: "b".repeat(32),
-  DISCORD_CLIENT_ID: "client-id",
-  DISCORD_CLIENT_SECRET: "client-secret",
   CORS_ORIGIN: "http://localhost:3000",
 };
 
