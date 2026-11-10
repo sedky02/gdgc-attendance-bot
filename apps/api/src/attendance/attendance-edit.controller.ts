@@ -3,6 +3,9 @@ import { ApiNotFoundResponse, ApiOperation, ApiParam, ApiTags } from "@nestjs/sw
 import { UpdateAttendanceDto } from "@meeting-system/contracts";
 import { ServiceOrDashboard } from "../common/decorators/service-or-dashboard.decorator.js";
 import { ResourceType } from "../common/decorators/resource-type.decorator.js";
+import { CurrentUser } from "../common/decorators/current-user.decorator.js";
+import { trustedActor } from "../common/utils/trusted-actor.util.js";
+import type { JwtPayload } from "../auth/jwt-payload.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
 import {
   ApiContractBody,
@@ -30,7 +33,11 @@ export class AttendanceEditController {
   @ApiContractBody("UpdateAttendanceDto")
   @ApiContractResponse(200, "Attendance")
   @ApiNotFoundResponse({ description: "Attendance record not found" })
-  update(@Param("id") id: string, @Body(new ZodValidationPipe(UpdateAttendanceDto)) dto: UpdateAttendanceDto) {
-    return this.attendanceService.updateSession(id, dto);
+  update(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(UpdateAttendanceDto)) dto: UpdateAttendanceDto,
+    @CurrentUser() user: JwtPayload | undefined,
+  ) {
+    return this.attendanceService.updateSession(id, { ...dto, editedBy: trustedActor(user, dto.editedBy) });
   }
 }

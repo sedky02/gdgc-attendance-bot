@@ -3,6 +3,9 @@ import { ApiNotFoundResponse, ApiOperation, ApiParam, ApiTags } from "@nestjs/sw
 import { ManualAttendanceDto, SyncAttendanceDto } from "@meeting-system/contracts";
 import { ServiceOnly } from "../common/decorators/service-only.decorator.js";
 import { ServiceOrDashboard } from "../common/decorators/service-or-dashboard.decorator.js";
+import { CurrentUser } from "../common/decorators/current-user.decorator.js";
+import { trustedActor } from "../common/utils/trusted-actor.util.js";
+import type { JwtPayload } from "../auth/jwt-payload.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
 import {
   ApiContractBody,
@@ -63,13 +66,18 @@ export class AttendanceController {
     summary: "Manually correct one attendee",
     description:
       "The escape hatch for a bot outage. Replaces that attendee's session list wholesale, sets `manuallyEdited`, " +
-      "and re-freezes stats if the meeting is already COMPLETED.",
+      "and re-freezes stats if the meeting is already COMPLETED. For a dashboard caller `editedBy` is taken from " +
+      "the bearer token; the body value is ignored.",
   })
   @ApiParam({ name: "id", description: "Meeting id" })
   @ApiContractBody("ManualAttendanceDto")
   @ApiContractResponse(201, "Attendance")
   @ApiNotFoundResponse({ description: "Meeting not found" })
-  manual(@Param("id") meetingId: string, @Body(new ZodValidationPipe(ManualAttendanceDto)) dto: ManualAttendanceDto) {
-    return this.attendanceService.manualCorrection(meetingId, dto);
+  manual(
+    @Param("id") meetingId: string,
+    @Body(new ZodValidationPipe(ManualAttendanceDto)) dto: ManualAttendanceDto,
+    @CurrentUser() user: JwtPayload | undefined,
+  ) {
+    return this.attendanceService.manualCorrection(meetingId, { ...dto, editedBy: trustedActor(user, dto.editedBy) });
   }
 }
