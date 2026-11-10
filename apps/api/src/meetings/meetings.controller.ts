@@ -12,6 +12,9 @@ import {
 } from "@meeting-system/contracts";
 import { ServiceOnly } from "../common/decorators/service-only.decorator.js";
 import { ServiceOrDashboard } from "../common/decorators/service-or-dashboard.decorator.js";
+import { CurrentUser } from "../common/decorators/current-user.decorator.js";
+import { trustedActor } from "../common/utils/trusted-actor.util.js";
+import type { JwtPayload } from "../auth/jwt-payload.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
 import {
   ApiContractBody,
@@ -130,7 +133,14 @@ export class MeetingsController {
   @ApiContractBody("UpdateMeetingSummaryDto")
   @ApiContractResponse(200, "Meeting")
   @ApiNotFoundResponse({ description: "Meeting not found" })
-  updateSummary(@Param("id") id: string, @Body(new ZodValidationPipe(UpdateMeetingSummaryDto)) dto: UpdateMeetingSummaryDto) {
-    return this.meetingLifecycleService.updateSummary(id, dto);
+  updateSummary(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(UpdateMeetingSummaryDto)) dto: UpdateMeetingSummaryDto,
+    @CurrentUser() user: JwtPayload | undefined,
+  ) {
+    return this.meetingLifecycleService.updateSummary(id, {
+      ...dto,
+      summaryUpdatedBy: trustedActor(user, dto.summaryUpdatedBy),
+    });
   }
 }
