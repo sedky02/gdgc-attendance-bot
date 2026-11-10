@@ -1,6 +1,10 @@
 import { EmbedBuilder } from "discord.js";
 import type { MeetingReport } from "@meeting-system/contracts";
 import { discordTimestamp, formatDuration } from "../../utils/format-duration.js";
+import { EMBED_FIELD_VALUE_LIMIT, chunkLines, fitLines } from "./embed-limits.js";
+
+// Keeps the whole embed under Discord's 6000-character total alongside the absent field.
+const PRESENT_BUDGET = 4 * EMBED_FIELD_VALUE_LIMIT - 200;
 
 const PRESENT_DOT = "🟢";
 const LATE_DOT = "🟡";
@@ -49,15 +53,22 @@ export function reportEmbed(meetingTypeName: string, report: MeetingReport): Emb
         "\n",
       ),
     )
-    .addFields({
-      name: `Present (${attendance.length})`,
-      value: attendeeLines.length > 0 ? attendeeLines.join("\n") : "_Nobody attended._",
-    })
     .setColor(0x5865f2)
     .setTimestamp(meeting.endedAt ?? new Date());
 
+  const presentChunks =
+    attendeeLines.length > 0
+      ? chunkLines(fitLines(attendeeLines, PRESENT_BUDGET), EMBED_FIELD_VALUE_LIMIT)
+      : ["_Nobody attended._"];
+  presentChunks.forEach((value, index) => {
+    embed.addFields({ name: index === 0 ? `Present (${attendance.length})` : "Present (continued)", value });
+  });
+
   if (absenteeLines.length > 0) {
-    embed.addFields({ name: `Absent (${absenteeLines.length})`, value: absenteeLines.join("\n") });
+    embed.addFields({
+      name: `Absent (${absenteeLines.length})`,
+      value: fitLines(absenteeLines, EMBED_FIELD_VALUE_LIMIT).join("\n"),
+    });
   }
 
   return embed;

@@ -1,6 +1,11 @@
 import { EmbedBuilder } from "discord.js";
 import type { Meeting, MeetingReport } from "@meeting-system/contracts";
 import { discordTimestamp, formatDuration } from "../../utils/format-duration.js";
+import { EMBED_DESCRIPTION_LIMIT, fitLines } from "./embed-limits.js";
+
+const HEADER_ALLOWANCE = 96;
+const PRESENT_BUDGET = Math.floor((EMBED_DESCRIPTION_LIMIT - HEADER_ALLOWANCE) * 0.7);
+const ABSENT_BUDGET = EMBED_DESCRIPTION_LIMIT - HEADER_ALLOWANCE - PRESENT_BUDGET;
 
 const PRESENT_DOT = "🟢";
 const LATE_DOT = "🟡";
@@ -55,8 +60,8 @@ export function rosterEmbed(meetingTypeName: string, report: MeetingReport): Emb
       [
         `${STATUS_LABEL[meeting.status]} · Present ${presentCount}/${expectedCount}`,
         "",
-        presentLines.length > 0 ? presentLines.join("\n") : "_Nobody has joined yet._",
-        absentLines.length > 0 ? `\n${absentLines.join("\n")}` : "",
+        presentLines.length > 0 ? fitLines(presentLines, PRESENT_BUDGET).join("\n") : "_Nobody has joined yet._",
+        absentLines.length > 0 ? `\n${fitLines(absentLines, ABSENT_BUDGET).join("\n")}` : "",
       ].join("\n"),
     )
     .setColor(STATUS_COLOR[meeting.status])
