@@ -6,13 +6,14 @@ import { ServiceOrJwtGuard } from "./service-or-jwt.guard.js";
 import { RESOURCE_TYPE_KEY, type ResourceTypeValue } from "../decorators/resource-type.decorator.js";
 
 const BOT_SERVICE_TOKEN = "the-bot-token";
-const JWT_PAYLOAD = { discordUserId: "user-1", username: "aymen", guildId: "guild-1", roleIds: [] };
+const JWT_PAYLOAD = { discordUserId: "user-1", username: "aymen", guildId: "guild-1", canManage: false };
 
 function fakeConfig() {
   return { get: (key: string) => (key === "BOT_SERVICE_TOKEN" ? BOT_SERVICE_TOKEN : "unused") } as never;
 }
 
 function fakeRequest(overrides: {
+  method?: string;
   serviceToken?: string;
   bearer?: string;
   params?: Record<string, string>;
@@ -24,6 +25,7 @@ function fakeRequest(overrides: {
   if (overrides.bearer) headers.authorization = `Bearer ${overrides.bearer}`;
 
   return {
+    method: overrides.method ?? "GET",
     header: (name: string) => headers[name.toLowerCase()],
     params: overrides.params ?? {},
     query: overrides.query ?? {},
@@ -130,5 +132,37 @@ describe("ServiceOrJwtGuard", () => {
 
     const context = makeContext(fakeRequest({ bearer: "good-token", params: { id: "does-not-exist" } }));
     await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+
+  describe("write access", () => {
+    const guildOwnership = { resolveOwnerGuildId: vi.fn().mockResolvedValue("guild-1") } as never;
+    const guardFor = (payload: object) =>
+      new ServiceOrJwtGuard(fakeConfig(), { verifyAsync: vi.fn().mockResolvedValue(payload) } as never, new Reflector(), guildOwnership);
+
+    it("rejects a write from a JWT without canManage", async () => {
+      const context = makeContext(fakeRequest({ method: "PATCH", bearer: "jwt", params: { id: "meeting-1" } }));
+      await expect(guardFor(JWT_PAYLOAD).canActivate(context)).rejects.toThrow(ForbiddenException);
+    });
+
+    it("rejects a write from an older JWT that predates the canManage claim", async () => {
+      const legacyPayload = { discordUserId: "user-1", username: "aymen", guildId: "guild-1", roleIds: [] };
+      const context = makeContext(fakeRequest({ method: "POST", bearer: "jwt", params: { id: "meeting-1" } }));
+      await expect(guardFor(legacyPayload).canActivate(context)).rejects.toThrow(ForbiddenException);
+    });
+
+    it("allows a write from a JWT with canManage", async () => {
+      const context = makeContext(fakeRequest({ method: "PATCH", bearer: "jwt", params: { id: "meeting-1" } }));
+      await expect(guardFor({ ...JWT_PAYLOAD, canManage: true }).canActivate(context)).resolves.toBe(true);
+    });
+
+    it("still refuses a manager writing to another guild's resource", async () => {
+      const context = makeContext(fakeRequest({ method: "PATCH", bearer: "jwt", query: { guildId: "guild-2" } }));
+      await expect(guardFor({ ...JWT_PAYLOAD, canManage: true }).canActivate(context)).rejects.toThrow("Guild mismatch");
+    });
+
+    it("lets the service token write regardless", async () => {
+      const context = makeContext(fakeRequest({ method: "POST", serviceToken: BOT_SERVICE_TOKEN }));
+      await expect(guardFor(JWT_PAYLOAD).canActivate(context)).resolves.toBe(true);
+    });
   });
 });

@@ -25,7 +25,12 @@ export default async function MeetingTypesPage() {
         ) : (
           <ul className="divide-y divide-slate-100">
             {meetingTypes.map((meetingType) => (
-              <MeetingTypeRow key={meetingType.id} apiToken={session.apiToken} meetingType={meetingType} />
+              <MeetingTypeRow
+                key={meetingType.id}
+                apiToken={session.apiToken}
+                meetingType={meetingType}
+                canManage={session.canManage}
+              />
             ))}
           </ul>
         )}

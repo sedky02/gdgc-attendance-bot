@@ -2,6 +2,25 @@ export interface DiscordGuild {
   id: string;
   name: string;
   icon: string | null;
+  canManage: boolean;
+}
+
+interface RawDiscordGuild {
+  id: string;
+  name: string;
+  icon: string | null;
+  owner?: boolean;
+  permissions?: string;
+}
+
+const ADMINISTRATOR = BigInt(1) << BigInt(3);
+const MANAGE_EVENTS = BigInt(1) << BigInt(33);
+
+// Mirrors the bot, whose manager commands default to the Manage Events permission.
+export function hasManagerPermission(guild: { owner?: boolean; permissions?: string }): boolean {
+  if (guild.owner) return true;
+  if (!guild.permissions) return false;
+  return (BigInt(guild.permissions) & (ADMINISTRATOR | MANAGE_EVENTS)) !== BigInt(0);
 }
 
 export function isGuildMember(guilds: DiscordGuild[], guildId: string): boolean {
@@ -25,7 +44,13 @@ export async function fetchUserGuilds(accessToken: string): Promise<DiscordGuild
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!response.ok) return [];
-  return response.json();
+  const guilds: RawDiscordGuild[] = await response.json();
+  return guilds.map((guild) => ({
+    id: guild.id,
+    name: guild.name,
+    icon: guild.icon,
+    canManage: hasManagerPermission(guild),
+  }));
 }
 
 /**
@@ -39,6 +64,6 @@ export async function fetchBotGuildIds(botToken: string): Promise<Set<string>> {
     headers: { Authorization: `Bot ${botToken}` },
   });
   if (!response.ok) return new Set();
-  const guilds: DiscordGuild[] = await response.json();
+  const guilds: { id: string }[] = await response.json();
   return new Set(guilds.map((guild) => guild.id));
 }

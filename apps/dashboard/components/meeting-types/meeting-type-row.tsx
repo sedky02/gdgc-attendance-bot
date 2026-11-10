@@ -5,7 +5,15 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { MeetingType } from "@meeting-system/contracts";
 
-export function MeetingTypeRow({ apiToken, meetingType }: { apiToken: string; meetingType: MeetingType }) {
+export function MeetingTypeRow({
+  apiToken,
+  meetingType,
+  canManage,
+}: {
+  apiToken: string;
+  meetingType: MeetingType;
+  canManage: boolean;
+}) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(meetingType.name);
@@ -64,9 +72,11 @@ export function MeetingTypeRow({ apiToken, meetingType }: { apiToken: string; me
               {meetingType.roles.length > 0 ? meetingType.roles.map((r) => r.nameSnapshot).join(", ") : "No expected roles"}
             </p>
           </div>
-          <button type="button" onClick={() => setIsEditing(true)} className="text-sm font-medium text-slate-500 hover:underline">
-            Rename
-          </button>
+          {canManage && (
+            <button type="button" onClick={() => setIsEditing(true)} className="text-sm font-medium text-slate-500 hover:underline">
+              Rename
+            </button>
+          )}
         </>
       )}
       {mutation.isError && <span className="text-xs text-red-600">Failed to save.</span>}
