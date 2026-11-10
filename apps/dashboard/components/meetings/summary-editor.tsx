@@ -11,12 +11,14 @@ export function SummaryEditor({
   initialSummary,
   initialUpdatedBy,
   editorName,
+  canManage,
 }: {
   apiToken: string;
   meetingId: string;
   initialSummary: string | null;
   initialUpdatedBy: string | null;
   editorName: string;
+  canManage: boolean;
 }) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
@@ -87,16 +89,18 @@ export function SummaryEditor({
     <div>
       {summary ? <p className="whitespace-pre-wrap text-sm text-slate-700">{summary}</p> : <p className="text-sm text-slate-400">No summary yet.</p>}
       <div className="mt-2 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            setDraft(summary ?? "");
-            setIsEditing(true);
-          }}
-          className="text-sm font-medium text-slate-600 hover:underline"
-        >
-          {summary ? "Edit summary" : "Add summary"}
-        </button>
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(summary ?? "");
+              setIsEditing(true);
+            }}
+            className="text-sm font-medium text-slate-600 hover:underline"
+          >
+            {summary ? "Edit summary" : "Add summary"}
+          </button>
+        )}
         {updatedBy && <span className="text-xs text-slate-400">last edited by {updatedBy}</span>}
         {mutation.isError && <span className="text-xs text-red-600">Failed to save — try again.</span>}
       </div>

@@ -12,10 +12,12 @@ export function AttendanceTable({
   apiToken,
   meetingId,
   editorName,
+  canManage,
 }: {
   apiToken: string;
   meetingId: string;
   editorName: string;
+  canManage: boolean;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [addingUserId, setAddingUserId] = useState<string | null>(null);
@@ -75,13 +77,15 @@ export function AttendanceTable({
                         {a.stats && a.stats.latenessMs > 0 ? formatDuration(a.stats.latenessMs) : "—"}
                       </td>
                       <td className="py-2 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setEditingId(editingId === a.id ? null : a.id)}
-                          className="text-xs font-medium text-slate-500 hover:underline"
-                        >
-                          Edit
-                        </button>
+                        {canManage && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingId(editingId === a.id ? null : a.id)}
+                            className="text-xs font-medium text-slate-500 hover:underline"
+                          >
+                            Edit
+                          </button>
+                        )}
                       </td>
                     </tr>
                     {editingId === a.id && (
@@ -117,13 +121,15 @@ export function AttendanceTable({
               <li key={absentee.discordUserId} className="py-2">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-700">{absentee.usernameSnapshot}</span>
-                  <button
-                    type="button"
-                    onClick={() => setAddingUserId(addingUserId === absentee.discordUserId ? null : absentee.discordUserId)}
-                    className="text-xs font-medium text-slate-500 hover:underline"
-                  >
-                    Add attendance
-                  </button>
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => setAddingUserId(addingUserId === absentee.discordUserId ? null : absentee.discordUserId)}
+                      className="text-xs font-medium text-slate-500 hover:underline"
+                    >
+                      Add attendance
+                    </button>
+                  )}
                 </div>
                 {addingUserId === absentee.discordUserId && (
                   <div className="mt-2">

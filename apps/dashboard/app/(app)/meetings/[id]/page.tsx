@@ -63,11 +63,17 @@ export default async function MeetingDetailPage({ params }: { params: { id: stri
           initialSummary={meeting.summary}
           initialUpdatedBy={meeting.summaryUpdatedBy}
           editorName={session.user.username}
+          canManage={session.canManage}
         />
       </Card>
 
       <Card>
-        <AttendanceTable apiToken={session.apiToken} meetingId={meeting.id} editorName={session.user.username} />
+        <AttendanceTable
+          apiToken={session.apiToken}
+          meetingId={meeting.id}
+          editorName={session.user.username}
+          canManage={session.canManage}
+        />
       </Card>
     </div>
   );

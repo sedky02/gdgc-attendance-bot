@@ -85,6 +85,11 @@ export const { handlers, signIn, signOut, auth, unstable_update }: NextAuthResul
       const selectedGuildId = token.selectedGuildId;
       session.guildId = selectedGuildId ?? "";
 
+      // Read from the guild list captured at sign-in, so a permission change in
+      // Discord takes effect on the next sign-in, not mid-session.
+      const canManage = token.availableGuilds?.find((guild) => guild.id === selectedGuildId)?.canManage ?? false;
+      session.canManage = canManage;
+
       // No guild selected yet — no API token to mint. `app/(app)/layout.tsx`
       // redirects to /select-guild before any page could try to use one.
       if (!selectedGuildId) {
@@ -93,14 +98,13 @@ export const { handlers, signIn, signOut, auth, unstable_update }: NextAuthResul
       }
 
       // Minted fresh per session read: the JWT the dashboard presents to
-      // the API, scoped to the guild the user picked. Role membership is
-      // filled in once the API exposes a members endpoint (Phase 2+); an
-      // empty list means "no elevated permissions yet", not "unauthenticated".
+      // the API, scoped to the guild the user picked. The API refuses writes
+      // from a token without `canManage`.
       session.apiToken = await new SignJWT({
         discordUserId,
         username,
         guildId: selectedGuildId,
-        roleIds: [],
+        canManage,
       })
         .setProtectedHeader({ alg: "HS256" })
         .setExpirationTime("7d")

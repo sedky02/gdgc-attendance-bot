@@ -13,7 +13,9 @@ import { RESOURCE_TYPE_KEY, type ResourceTypeValue } from "../decorators/resourc
  * a static X-Service-Token, unrestricted across guilds; the dashboard with a
  * per-user JWT, scoped to the one guild it was minted for. This guard tries
  * the service token first, then falls back to verifying the JWT and
- * enforcing that guild scope.
+ * enforcing that guild scope. A JWT may always read its guild; writing needs
+ * the `canManage` claim, the dashboard's equivalent of the Manage Events
+ * permission that gates the bot's manager commands.
  *
  * Most routes carry a guildId directly (query/body/param) and that's checked
  * first. Routes scoped by a resource id instead (`/meetings/:id/...`,
@@ -22,6 +24,8 @@ import { RESOURCE_TYPE_KEY, type ResourceTypeValue } from "../decorators/resourc
  * id — GuildOwnershipService resolves the owning guild for that id (per
  * ResourceType) and this guard checks it the same way.
  */
+const READ_ONLY_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
 @Injectable()
 export class ServiceOrJwtGuard implements CanActivate {
   constructor(
@@ -54,6 +58,16 @@ export class ServiceOrJwtGuard implements CanActivate {
 
     request.user = payload;
 
+    await this.assertGuildScope(request, context, payload);
+
+    if (!READ_ONLY_METHODS.has(request.method) && payload.canManage !== true) {
+      throw new ForbiddenException("You need the Manage Events permission in this server to make changes");
+    }
+
+    return true;
+  }
+
+  private async assertGuildScope(request: Request, context: ExecutionContext, payload: JwtPayload): Promise<void> {
     const directGuildId =
       (request.params?.guildId as string | undefined) ??
       (request.query?.guildId as string | undefined) ??
@@ -63,12 +77,12 @@ export class ServiceOrJwtGuard implements CanActivate {
       if (directGuildId !== payload.guildId) {
         throw new ForbiddenException("Guild mismatch");
       }
-      return true;
+      return;
     }
 
     const id = request.params?.id;
     if (!id) {
-      return true;
+      return;
     }
 
     const resourceType =
@@ -81,7 +95,5 @@ export class ServiceOrJwtGuard implements CanActivate {
     if (ownerGuildId && ownerGuildId !== payload.guildId) {
       throw new ForbiddenException("Guild mismatch");
     }
-
-    return true;
   }
 }

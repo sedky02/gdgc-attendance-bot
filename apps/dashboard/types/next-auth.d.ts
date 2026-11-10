@@ -17,6 +17,8 @@ declare module "next-auth" {
      * need to thread an optionality check that can never trigger for them.
      */
     guildId: string;
+    /** Whether the user holds Manage Events (or higher) in the selected guild. */
+    canManage: boolean;
     apiToken: string;
   }
 }
