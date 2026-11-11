@@ -65,7 +65,7 @@ async function seed() {
     pauses: [],
     expectedMembers: [aymen, sami, ali, ahmed].map((m) => ({ ...m, roleIds: [TECHNICAL_ROLE_ID] })),
     summary: "Covered the new attendance bot architecture.",
-    summaryUpdatedBy: CREATED_BY,
+    summaryUpdatedBy: DEMO_USER.username,
     summaryUpdatedAt: new Date("2026-07-06T20:40:00Z"),
     stats: { presentCount: 3, expectedCount: 4, unexpectedCount: 0, durationMs: 5_700_000 },
   });
