@@ -1,7 +1,10 @@
 import NextAuth, { type NextAuthResult } from "next-auth";
 import Discord from "next-auth/providers/discord";
+import Credentials from "next-auth/providers/credentials";
 import { SignJWT } from "jose";
+import { DEMO_GUILD, DEMO_USER } from "@meeting-system/contracts";
 import { fetchBotGuildIds, fetchUserGuilds, intersectGuilds } from "./lib/guild-membership";
+import { DEMO_PROVIDER_ID, isDemoMode } from "./lib/demo-mode";
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
 const API_JWT_SECRET = new TextEncoder().encode(process.env.API_JWT_SECRET!);
@@ -18,6 +21,16 @@ export const { handlers, signIn, signOut, auth, unstable_update }: NextAuthResul
       clientSecret: process.env.DISCORD_CLIENT_SECRET,
       authorization: { params: { scope: "identify guilds" } },
     }),
+    ...(isDemoMode()
+      ? [
+          Credentials({
+            id: DEMO_PROVIDER_ID,
+            name: "Demo",
+            credentials: {},
+            authorize: () => ({ id: DEMO_USER.discordUserId, name: DEMO_USER.username }),
+          }),
+        ]
+      : []),
   ],
   callbacks: {
     async signIn({ account }) {
@@ -25,9 +38,20 @@ export const { handlers, signIn, signOut, auth, unstable_update }: NextAuthResul
       // dashboard is multi-tenant now. Any authenticated Discord user may
       // sign in; which guilds they can actually see data for is resolved in
       // `jwt` below, as the intersection of their guilds and the bot's.
+      if (account?.provider === DEMO_PROVIDER_ID) {
+        return isDemoMode();
+      }
       return !!account?.access_token;
     },
     async jwt({ token, account, profile, trigger, session }) {
+      if (account?.provider === DEMO_PROVIDER_ID) {
+        token.discordUserId = DEMO_USER.discordUserId;
+        token.username = DEMO_USER.username;
+        token.availableGuilds = [{ id: DEMO_GUILD.id, name: DEMO_GUILD.name, icon: null, canManage: true }];
+        token.selectedGuildId = DEMO_GUILD.id;
+        return token;
+      }
+
       if (profile) {
         token.discordUserId = profile.id as string;
         token.username = (profile.username as string) ?? (profile.name as string);
