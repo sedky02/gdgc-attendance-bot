@@ -1,724 +1,241 @@
 # Meeting System
 
-A Discord bot, REST API, and web dashboard for running university club meetings and tracking voice channel attendance automatically.
+![Meeting Bot banner](assets/images/discord-bot-banner.png)
 
-Start a meeting from a voice channel with a slash command. The system records who was there, when they arrived, how long they stayed, and how many times they came and went. When the meeting ends, it produces an attendance report in Discord and stores the whole thing for the dashboard.
+[![CI](https://github.com/sedky02/gdgc-attendance-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/sedky02/gdgc-attendance-bot/actions/workflows/ci.yml)
 
----
+Club leads lose the first minutes of every meeting taking attendance by hand, and the record ends up in a spreadsheet nobody maintains. Meeting System takes attendance from the Discord voice channel the club is already sitting in. A lead runs `/start-meeting`; the bot records who was there, when each person arrived, how long they stayed and how often they dropped out, then posts a report when the meeting ends. A web dashboard shows live and past meetings and lets a lead correct the record. It was built for a university developer club (GDGC) and works for any Discord server that holds meetings in voice.
 
-## Table of contents
+![The dashboard during a live meeting](docs/screenshots/live-meeting.png)
 
-- [Why this exists](#why-this-exists)
-- [Core principles](#core-principles)
-- [Architecture](#architecture)
-- [Tech stack](#tech-stack)
-- [Domain model](#domain-model)
-- [The attendance resolver](#the-attendance-resolver)
-- [Discord commands](#discord-commands)
-- [API reference](#api-reference)
-- [Project structure](#project-structure)
-- [Getting started](#getting-started)
-- [Environment variables](#environment-variables)
-- [Development](#development)
-- [Testing](#testing)
-- [Deployment](#deployment)
-- [Data rules and invariants](#data-rules-and-invariants)
-- [Roadmap](#roadmap)
+*The meeting page while a meeting is running. It refreshes every five seconds; a green dot marks who is in the channel right now.*
 
----
+## Key features
 
-## Why this exists
-
-Club leads waste the first ten minutes of every meeting taking attendance, and the record ends up in a spreadsheet nobody maintains. Everyone is already in a Discord voice channel, so the presence data exists. This just captures it.
-
----
-
-## Core principles
-
-**1. The API owns all business logic.**
-The Discord bot receives commands and events, calls the API, and renders the response. It never touches the database. It has no `MONGODB_URI`. If you find yourself writing a Mongoose model inside `apps/bot`, stop — the logic belongs in a service in `apps/api`.
-
-**2. Attendance is a reconciled state, not an event log.**
-Voice events are lossy. Bots restart, gateways disconnect, HTTP calls fail. Every active meeting is therefore re-synced against the real voice channel roster every 60 seconds, and on bot startup. Events give precision; sync guarantees correctness. Both go through the same idempotent resolver.
-
-**3. Historical records never change retroactively.**
-Usernames, role names, and the expected-member list are snapshotted at write time. A member leaving the club next semester must not alter the attendance record of a meeting held today.
-
-**4. Derived values are computed while live, frozen when complete.**
-Duration, lateness, and session counts are calculated on read for `ACTIVE` meetings and written once at `/end-meeting`. This keeps live data correct without making the history page aggregate the entire collection.
-
----
+- **Automatic attendance from voice presence.** Joins, leaves and channel moves become timed sessions per member, with lateness and total time derived from them.
+- **Self-correcting records.** Discord events get lost when a bot restarts or a connection drops. Every live meeting is re-synced against the real channel roster every 60 seconds and on bot startup, through the same idempotent code path as the events.
+- **Expected members and absentees.** A meeting type names the Discord roles expected to attend. The member list is snapshotted when the meeting starts, so later role changes never rewrite history.
+- **Meeting lifecycle in Discord.** Nine slash commands: create, edit and delete meeting types; start, pause, resume, end and cancel meetings; show live status.
+- **Dashboard.** Live meeting view, meeting history, frozen reports, meeting summaries, and manual corrections with the editor recorded.
+- **Abandoned-meeting sweeper.** A meeting whose channel has been empty for 15 minutes, or that has run 12 hours, is ended automatically with its report intact.
+- **Try it without Discord.** A demo mode signs you into the dashboard over seeded data, and a simulator plays the bot's part against the real API.
 
 ## Architecture
 
-```text
-┌──────────────┐     ┌──────────────┐
-│   Discord    │     │   Browser    │
-└──────┬───────┘     └──────┬───────┘
-       │ gateway            │ HTTPS
-       ▼                    ▼
-┌──────────────┐     ┌──────────────┐
-│  Bot         │     │  Dashboard   │
-│  discord.js  │     │  Next.js     │
-│              │     │              │
-│  commands    │     │  Auth.js     │
-│  events      │     │  TanStack    │
-│  reconciler  │     │  Query       │
-└──────┬───────┘     └──────┬───────┘
-       │                    │
-       │ service token      │ user JWT
-       └────────┬───────────┘
-                ▼
-       ┌─────────────────┐
-       │   NestJS API    │
-       │                 │
-       │  auth           │
-       │  meeting-types  │
-       │  meetings       │
-       │  attendance ◄── resolver + stats
-       │  reports        │
-       │  sweeper (cron) │
-       └────────┬────────┘
-                ▼
-          ┌───────────┐
-          │  MongoDB  │
-          └───────────┘
+```mermaid
+flowchart TD
+    D[Discord gateway] -->|voice events, slash commands| B
+    U[Browser] -->|HTTPS| W
+
+    subgraph Bot["Bot (discord.js)"]
+        B[Commands and voice events] --> Q[Per-user ordered queue]
+        R[Reconciler: roster sync every 60s and on startup]
+    end
+
+    subgraph Web["Dashboard (Next.js)"]
+        W[Auth.js sign-in, pages, live polling]
+    end
+
+    Q -->|service token| A
+    R -->|service token| A
+    W -->|guild-scoped JWT| A
+
+    subgraph API["API (NestJS)"]
+        A[Controllers and guards] --> L[Meeting lifecycle]
+        A --> X[Attendance resolver: the only writer of sessions]
+        L --> X
+        S[Sweeper cron] --> X
+    end
+
+    X --> M[(MongoDB)]
+    L --> M
 ```
 
-Both clients speak to the same API with the same contracts. The bot authenticates with a static service token and passes the acting Discord user ID for attribution; the dashboard authenticates with a JWT minted after verifying Discord guild membership.
+Three apps in one pnpm/Turborepo workspace, sharing one `packages/contracts` package of Zod schemas:
 
-### Event flow
-
-```text
-User joins voice channel
-        │
-        ▼
-voiceStateUpdate fires
-        │
-        ├─ ignore if: bot user, or channelId unchanged (mute/deafen/video)
-        │
-        ▼
-Bot queues event with occurredAt timestamp
-        │
-        ▼
-POST /internal/voice-events   (retries with backoff)
-        │
-        ▼
-API resolves target meeting by (guildId, channelId, status ACTIVE)
-        │
-        ▼
-Attendance resolver: open session if none open
-```
-
-Running in parallel, every 60 seconds per active meeting:
-
-```text
-Bot reads channel.members
-        │
-        ▼
-POST /meetings/:id/attendance/sync  { presentUserIds, observedAt }
-        │
-        ▼
-Resolver diffs: open sessions for newcomers, close sessions for absentees
-```
-
-Both paths converge on the same resolver, and the resolver is idempotent. A duplicated event is a no-op; a dropped event self-corrects within a minute.
-
----
-
-## Tech stack
-
-| Layer | Choice | Notes |
+| Package | Stack | Role |
 |---|---|---|
-| Monorepo | pnpm workspaces + Turborepo | Three apps sharing one contracts package |
-| API | NestJS 10, TypeScript | Modular, DI, first-class testing |
-| Database | MongoDB + Mongoose | Partial unique indexes enforce the key invariants |
-| Bot | discord.js v14 | Long-running process, gateway intents required |
-| Dashboard | Next.js 14+ App Router | Server components for lists, client for live views |
-| UI | Tailwind + shadcn/ui | |
-| Data fetching | TanStack Query | Polling for live meetings comes almost free |
-| Validation | Zod, shared via `packages/contracts` | One schema drives API DTOs and dashboard forms |
-| API docs | `@nestjs/swagger` + `zod-to-json-schema` | OpenAPI generated from the same Zod schemas, no class DTOs |
-| Auth | Auth.js (Discord provider) + JWT; service token for the bot | |
-| Scheduling | `@nestjs/schedule` | Stale-meeting sweeper. No Redis in the MVP |
-| Logging | pino, with `meetingId` correlation | |
-| Testing | Vitest + `mongodb-memory-server` | The resolver is a state machine and must be unit tested |
-| Local infra | Docker Compose | Mongo + mongo-express |
+| `apps/api` | NestJS 10, Mongoose, MongoDB | Owns all business logic and the only database connection |
+| `apps/bot` | discord.js 14 | Receives commands and voice events, calls the API, renders embeds. Has no database access |
+| `apps/dashboard` | Next.js 14 (App Router), Auth.js, TanStack Query, Tailwind | Live view, history, corrections |
+| `tests/e2e` | Vitest, mongodb-memory-server | Runs the built API as a process with the bot's real reconciler and a fake gateway |
 
-Redis is deliberately absent. Nothing here needs a queue or a cache yet. Revisit if the bot is sharded across processes or reminders are added.
+Design detail (data model, resolver rules, state machine, API reference, invariants) is in [docs/design.md](docs/design.md).
 
----
+## Quick start (no Discord account needed)
 
-## Domain model
-
-Three collections. A fourth (`MeetingReport`) was considered and dropped — the summary lives on the meeting.
-
-```text
-MeetingType  1 ──── N  Meeting  1 ──── N  Attendance  ──── embedded  Session[]
-```
-
-### MeetingType
-
-Reusable configuration. Defines what kind of meeting this is and which Discord roles are expected to attend.
-
-```ts
-{
-  _id: ObjectId,
-  guildId: string,
-  name: string,                    // "Weekly Technical Meeting"
-  roles: [{
-    roleId: string,                // canonical
-    nameSnapshot: string           // display only, refreshed on edit
-  }],
-  createdBy: string,               // discord user id
-  archived: boolean,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
-Roles are stored by ID, not name. Renaming a role in Discord must not silently break the type.
-
-### Meeting
-
-One actual occurrence. It has no title of its own — the name comes from its `MeetingType`.
-
-```ts
-{
-  _id: ObjectId,
-  guildId: string,
-  meetingType: ObjectId,
-  voiceChannelIds: string[],       // usually one, array supports breakouts
-  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED',
-
-  startedBy: string,
-  startedAt: Date,
-  endedBy: string | null,          // discord user id, or 'SYSTEM'
-  endedAt: Date | null,
-  cancelReason: string | null,
-
-  pauses: [{ pausedAt: Date, resumedAt: Date | null }],
-
-  // snapshot written once at start, never mutated
-  expectedMembers: [{
-    discordUserId: string,
-    usernameSnapshot: string,
-    roleIds: string[]
-  }],
-
-  summary: string | null,
-  summaryUpdatedBy: string | null,
-  summaryUpdatedAt: Date | null,
-
-  // frozen at /end-meeting only
-  stats: {
-    presentCount: number,
-    expectedCount: number,
-    unexpectedCount: number,
-    durationMs: number
-  } | null,
-
-  createdAt: Date
-}
-```
-
-`expectedMembers` is the fix for a subtle bug: if absentees are computed by comparing current role membership against attendance, then every historical meeting silently rewrites itself as people join and leave the club. Snapshotting costs nothing and makes the record permanent.
-
-### Attendance
-
-One document per user per meeting. Created lazily — only for people who actually show up.
-
-```ts
-{
-  _id: ObjectId,
-  meeting: ObjectId,
-  discordUserId: string,           // canonical identifier
-  usernameSnapshot: string,
-  displayNameSnapshot: string,
-  expected: boolean,               // false = attended without a matching role
-
-  sessions: [{
-    joinedAt: Date,
-    leftAt: Date | null,
-    source: 'EVENT' | 'SYNC' | 'MANUAL'
-  }],
-
-  manuallyEdited: boolean,
-  editedBy: string | null,
-
-  // frozen at /end-meeting
-  stats: {
-    firstJoinedAt: Date,
-    latenessMs: number,
-    totalDurationMs: number,
-    sessionCount: number
-  } | null
-}
-```
-
-`source` on each session is worth having. When a session was reconstructed by the 60-second sync rather than observed directly, its boundary can be off by up to a minute — and when you are debugging an odd record six weeks later, knowing which path wrote it saves an hour.
-
-### Indexes
-
-```ts
-// at most one live meeting per channel, enforced by the database
-MeetingSchema.index(
-  { guildId: 1, voiceChannelIds: 1 },
-  { unique: true, partialFilterExpression: { status: { $in: ['ACTIVE', 'PAUSED'] } } }
-);
-
-// at most one attendance doc per user per meeting
-AttendanceSchema.index({ meeting: 1, discordUserId: 1 }, { unique: true });
-
-// history queries
-MeetingSchema.index({ guildId: 1, status: 1, startedAt: -1 });
-MeetingTypeSchema.index({ guildId: 1, archived: 1 });
-```
-
-Invariants belong in the database. Application-level "check then write" loses to concurrency every time.
-
----
-
-## The attendance resolver
-
-The single component that mutates sessions. Everything else calls it.
-
-```ts
-resolvePresence(meetingId, {
-  presentUserIds: string[],   // full roster, or a single user for an event
-  observedAt: Date,
-  scope: 'FULL' | 'PARTIAL',  // FULL closes sessions for anyone absent
-  source: 'EVENT' | 'SYNC'
-})
-```
-
-Rules:
-
-- **Timestamps come from the caller**, never `Date.now()` inside the API. A retried request must not shift the record.
-- **Opening is conditional.** If the user already has an open session, do nothing. Implemented as a single atomic `findOneAndUpdate` with upsert, not read-then-write.
-- **Closing only applies with `scope: 'FULL'`.** A join event tells you one person arrived; it says nothing about anyone else.
-- **`PAUSED` meetings ignore everything.** No sessions open or close while paused.
-- **Late-arriving `observedAt` is discarded** if it predates the session's `joinedAt`.
-
-The pause and resume semantics matter: pausing closes every open session, resuming re-opens sessions for whoever is currently in the channel. This prevents one session from spanning a pause and inflating durations.
-
-### Lifecycle state machine
-
-```text
-                  /start-meeting
-                        │
-                        ▼
-    ┌───── /pause ─── ACTIVE ─── /end ────► COMPLETED
-    │                  ▲  │
-    ▼                  │  └──── /cancel ──► CANCELLED
- PAUSED ── /resume ────┘  │
-    │                     └──── sweeper ──► COMPLETED (endedBy: SYSTEM)
-    └──── /cancel ─────────────────────────► CANCELLED
-```
-
-The sweeper runs every 5 minutes and auto-ends any meeting whose channels have been empty for more than 15 minutes, backdating `endedAt` to the last observed departure. It also hard-caps meetings at 12 hours. Without it, one forgotten `/start-meeting` permanently blocks that channel via the uniqueness index.
-
----
-
-## Discord commands
-
-| Command | Who | What it does |
-|---|---|---|
-| `/create-meeting-type` | manager | Creates a MeetingType. Modal for the name, native role select for roles. |
-| `/edit-meeting-type` | manager | Edits name and roles. Affects future meetings only. |
-| `/delete-meeting-type` | manager | Archives a type so it can no longer start meetings. Past meetings keep their records. |
-| `/start-meeting` | manager | Detects your current voice channel, prompts for a type, snapshots expected members, opens sessions for whoever is already present. |
-| `/pause-meeting` | manager | `ACTIVE → PAUSED`. Closes all open sessions. |
-| `/resume-meeting` | manager | `PAUSED → ACTIVE`. Re-opens sessions for current occupants. |
-| `/end-meeting` | manager | Closes sessions, freezes stats, posts the attendance report. |
-| `/cancel-meeting` | manager | Closes sessions, marks `CANCELLED`, no report. Record is kept. |
-| `/meeting-status` | anyone | Who is currently in the live meeting. |
-
-Manager access is gated with `setDefaultMemberPermissions(PermissionFlagsBits.ManageEvents)`, overridable per guild.
-
-Use Discord's native components rather than parsing free text: `RoleSelectMenuBuilder` for role configuration, `StringSelectMenu` for choosing a meeting type. This also removes any chance of a role-name typo.
-
-### Report output
-
-```text
-Weekly Technical Meeting
-16 Aug 2026 · 19:00 → 20:35 (1h35)
-
-Present  8/10
-
-Aymen     19:02 → 20:35   1h33   (2 sessions)
-Sami      19:00 → 20:10   1h10
-Ali       19:17 → 20:35   1h18   late 17m
-Ahmed     absent
-```
-
----
-
-## API reference
-
-All routes are prefixed `/api/v1`. Every route is scoped to a guild.
-
-Interactive docs are served at **`/docs`**, with the raw OpenAPI 3 document at **`/docs/openapi.json`**. Both sit outside the version prefix, alongside `/health`. They are on by default and off when `NODE_ENV=production`, unless `SWAGGER_ENABLED` says otherwise.
-
-The request and response schemas are generated from the Zod schemas in `packages/contracts` at boot — there are no hand-written class DTOs to drift out of sync. Adding a contract to `apps/api/src/openapi/contract-schemas.ts` is what makes it referenceable from a route.
-
-### Meeting types
-
-```
-GET    /meeting-types?guildId=
-POST   /meeting-types
-GET    /meeting-types/:id
-PATCH  /meeting-types/:id
-DELETE /meeting-types/:id        # soft delete → archived: true
-```
-
-### Meetings
-
-```
-POST   /meetings                 # start
-GET    /meetings?guildId=&status=&page=
-GET    /meetings/active?guildId=
-GET    /meetings/:id
-POST   /meetings/:id/pause
-POST   /meetings/:id/resume
-POST   /meetings/:id/end
-POST   /meetings/:id/cancel
-PATCH  /meetings/:id/summary
-GET    /meetings/:id/report
-```
-
-### Attendance
-
-```
-GET    /meetings/:id/attendance
-POST   /meetings/:id/attendance/sync      # full roster reconciliation
-POST   /meetings/:id/attendance/manual    # lead correction, sets source MANUAL
-PATCH  /attendance/:id                    # edit a session, audited
-```
-
-### Internal (service token only)
-
-```
-POST   /internal/voice-events             # { guildId, userId, from, to, occurredAt }
-POST   /internal/bootstrap                # bot startup: list active meetings to reconcile
-```
-
-Deleting a meeting is intentionally absent. Cancelled and completed meetings stay in the database.
-
----
-
-## Project structure
-
-```text
-meeting-system/
-├── apps/
-│   ├── api/
-│   │   └── src/
-│   │       ├── main.ts
-│   │       ├── app.module.ts
-│   │       ├── config/                  # zod-validated env, mongoose setup
-│   │       ├── common/
-│   │       │   ├── guards/              # ServiceTokenGuard, ServiceOrJwtGuard
-│   │       │   ├── decorators/          # @CurrentUser, @ServiceOnly
-│   │       │   ├── filters/
-│   │       │   └── pipes/               # ZodValidationPipe
-│   │       ├── auth/
-│   │       ├── meeting-types/
-│   │       │   ├── schemas/
-│   │       │   ├── meeting-types.service.ts
-│   │       │   ├── meeting-types.controller.ts
-│   │       │   └── meeting-types.module.ts
-│   │       ├── meetings/
-│   │       │   ├── schemas/
-│   │       │   ├── meetings.service.ts
-│   │       │   ├── meeting-lifecycle.service.ts
-│   │       │   ├── meeting-sweeper.service.ts
-│   │       │   ├── meetings.controller.ts
-│   │       │   └── meetings.module.ts
-│   │       ├── attendance/
-│   │       │   ├── schemas/
-│   │       │   ├── attendance-resolver.service.ts    # the core
-│   │       │   ├── attendance-stats.service.ts
-│   │       │   ├── attendance.service.ts
-│   │       │   ├── attendance.controller.ts
-│   │       │   └── attendance.module.ts
-│   │       ├── reports/
-│   │       └── internal/                # endpoints the bot calls
-│   │
-│   ├── bot/
-│   │   └── src/
-│   │       ├── index.ts
-│   │       ├── client.ts
-│   │       ├── deploy-commands.ts
-│   │       ├── commands/                # one folder per command
-│   │       │   ├── create-meeting-type/{index.ts,constants.ts}
-│   │       │   ├── edit-meeting-type/{index.ts,constants.ts}
-│   │       │   ├── start-meeting/{index.ts,constants.ts}
-│   │       │   ├── pause-meeting/index.ts
-│   │       │   ├── resume-meeting/index.ts
-│   │       │   ├── end-meeting/index.ts
-│   │       │   ├── cancel-meeting/{index.ts,constants.ts}
-│   │       │   ├── meeting-status/index.ts
-│   │       │   └── ping/index.ts
-│   │       ├── events/
-│   │       │   ├── ready.ts
-│   │       │   ├── interaction-create.ts
-│   │       │   └── voice-state-update.ts
-│   │       ├── services/
-│   │       │   ├── api-client.ts        # thin facade over services/api/
-│   │       │   ├── api/                 # per-resource clients + shared http-client
-│   │       │   ├── reconciler.ts        # 60s roster sync
-│   │       │   └── event-queue.ts       # bounded, ordered per user
-│   │       ├── validation/
-│   │       │   └── guards.ts            # shared precondition-reply helpers
-│   │       ├── ui/
-│   │       │   ├── embeds/
-│   │       │   ├── modals/              # shared single-field modal builder
-│   │       │   ├── selects/             # shared select-menu prompts
-│   │       │   ├── constants.ts         # shared UI timeouts
-│   │       │   └── reply-error.ts       # shared error-reply helper
-│   │       └── utils/
-│   │
-│   └── dashboard/
-│       ├── app/
-│       │   ├── (auth)/login/
-│       │   ├── (app)/
-│       │   │   ├── page.tsx                     # overview
-│       │   │   ├── meetings/page.tsx
-│       │   │   ├── meetings/[id]/page.tsx
-│       │   │   └── meeting-types/page.tsx
-│       │   └── api/auth/[...nextauth]/
-│       ├── components/{ui,meetings,attendance}/
-│       ├── lib/{api.ts,queries/}
-│       └── types/
-│
-├── packages/
-│   ├── contracts/          # zod schemas, inferred types, enums — shared by all three
-│   ├── eslint-config/
-│   └── tsconfig/
-│
-├── infra/
-│   ├── docker-compose.yml
-│   └── Dockerfile.{api,bot,dashboard}
-│
-├── docs/
-│   └── BUILD_PLAN.md
-├── CLAUDE.md
-├── turbo.json
-├── pnpm-workspace.yaml
-└── package.json
-```
-
-Note what `apps/bot` does not contain: a `models/` directory or a database connection.
-
----
-
-## Getting started
-
-Requires Node 20+, pnpm 9+, Docker, and a Discord application.
+Requires Node 20+, pnpm 9 and Docker. Ports 3000, 3001 and 27017 must be free.
 
 ```bash
 git clone https://github.com/sedky02/gdgc-attendance-bot.git && cd gdgc-attendance-bot
 pnpm install
-pnpm build                                             # builds packages/contracts, which every app imports
-
-docker compose -f infra/docker-compose.yml up -d      # mongo on :27017
-
-cp apps/api/.env.example apps/api/.env
-cp apps/bot/.env.example apps/bot/.env
-cp apps/dashboard/.env.example apps/dashboard/.env.local
-# fill in the values below
-
-pnpm --filter bot deploy-commands                      # register slash commands
-pnpm dev                                               # turbo runs all three
+pnpm build
+docker compose -f infra/docker-compose.yml up -d --wait   # MongoDB on :27017
+pnpm demo:setup                                           # writes local env files with generated secrets
+pnpm --filter api seed                                    # 2 meeting types, 3 past meetings
+pnpm demo                                                 # API on :3001, dashboard on :3000
 ```
 
-API on `:3001`, dashboard on `:3000`, bot connects to the gateway.
+Open <http://localhost:3000> and choose **Continue with demo data**. You are signed in as a manager of the seeded server and can browse past meetings, edit a summary, and correct attendance.
 
-### Discord setup
+To watch a meeting happen live, run the simulator in a second terminal:
 
-Create an application at the Discord Developer Portal. Under **Bot**, enable:
+```bash
+pnpm --filter api demo:live
+```
 
-- Server Members Intent
-- Message Content Intent is **not** needed
+It starts a meeting through the API, replays 25 minutes of earlier joins and leaves, then sends a new voice event every ten seconds. Open the live meeting from the Overview page and watch the table update. Press Ctrl-C in the simulator to end the meeting and freeze its report.
 
-Required gateway intents in code: `Guilds`, `GuildVoiceStates`, `GuildMembers`.
+The simulator sends the same requests the bot sends (`POST /internal/voice-events`, `POST /meetings/:id/attendance/sync`) with the same service token. The bot process itself is not part of the demo, because it needs a Discord token.
 
-Invite with scopes `bot` and `applications.commands`, and permissions: View Channels, Send Messages, Read Message History (required to fetch and edit the tracked roster message), Use Slash Commands, Connect (to read voice state), Embed Links.
+Interactive API docs are at <http://localhost:3001/docs>.
 
-Under **OAuth2**, add `http://localhost:3000/api/auth/callback/discord` as a redirect for the dashboard.
+`pnpm demo:setup` refuses to overwrite existing env files. Demo sign-in only exists when the dashboard runs with `DEMO_MODE=true` outside a production build.
 
----
+| Overview | A completed meeting |
+|---|---|
+| ![Overview page](docs/screenshots/overview.png) | ![Completed meeting report](docs/screenshots/meeting-report.png) |
 
-## Environment variables
+## Running it against Discord
+
+1. Create an application in the Discord Developer Portal. Under **Bot**, enable the **Server Members Intent**. The code uses the `Guilds`, `GuildVoiceStates` and `GuildMembers` intents.
+2. Invite the bot with scopes `bot` and `applications.commands` and the permissions View Channels, Send Messages, Embed Links, Read Message History and Connect.
+3. Under **OAuth2**, add the redirect `http://localhost:3000/api/auth/callback/discord`.
+4. Create the env files and fill them in (see [Configuration](#configuration)):
+
+   ```bash
+   cp apps/api/.env.example apps/api/.env
+   cp apps/bot/.env.example apps/bot/.env
+   cp apps/dashboard/.env.example apps/dashboard/.env.local
+   ```
+
+5. Register the slash commands and start everything:
+
+   ```bash
+   pnpm build
+   pnpm --filter bot deploy-commands
+   pnpm dev
+   ```
+
+Set `DISCORD_DEV_GUILD_ID` during development: guild commands register instantly, global ones can take an hour. Re-run `deploy-commands` after changing any command definition.
+
+### Commands
+
+| Command | Who | What it does |
+|---|---|---|
+| `/create-meeting-type` | manager | Creates a meeting type: a name plus the roles expected to attend |
+| `/edit-meeting-type` | manager | Edits the name and roles. Affects future meetings only |
+| `/delete-meeting-type` | manager | Archives a type so it can no longer start meetings. Past meetings keep their records |
+| `/start-meeting` | manager | Starts a meeting in your current voice channel, snapshots expected members, opens sessions for whoever is present |
+| `/pause-meeting` | manager | Pauses the meeting and closes every open session |
+| `/resume-meeting` | manager | Resumes and opens new sessions for whoever is in the channel |
+| `/end-meeting` | manager | Closes sessions, freezes stats, posts the attendance report |
+| `/cancel-meeting` | manager | Closes sessions and marks the meeting cancelled, with a reason. The record is kept |
+| `/meeting-status` | anyone | Shows who is in the live meeting |
+
+Manager commands default to members with the **Manage Events** permission; a server admin can change that per command in Discord. The dashboard applies the same rule: anyone in the server can read, only members with Manage Events (or Administrator, or the owner) can edit.
+
+## Configuration
 
 **`apps/api/.env`**
 
-```bash
-NODE_ENV=development
-PORT=3001
-MONGODB_URI=mongodb://root:root@localhost:27017/meetings?authSource=admin
-JWT_SECRET=                  # openssl rand -base64 32
-BOT_SERVICE_TOKEN=           # openssl rand -hex 32, must match the bot
-CORS_ORIGIN=http://localhost:3000
-SWAGGER_ENABLED=             # "true" or "false"; defaults to true unless NODE_ENV=production
-BOT_HEALTH_URL=              # optional; bot's public URL, pinged while a meeting is live (see "Running on Render's free tier")
-API_PUBLIC_URL=              # optional; this API's own public /health URL, same purpose
-```
+| Variable | Required | Purpose |
+|---|---|---|
+| `MONGODB_URI` | yes | MongoDB connection string |
+| `JWT_SECRET` | yes | At least 32 characters. Must equal the dashboard's `API_JWT_SECRET` |
+| `BOT_SERVICE_TOKEN` | yes | At least 32 characters. Must equal the bot's `BOT_SERVICE_TOKEN` |
+| `CORS_ORIGIN` | yes | The dashboard's origin |
+| `PORT` | no | Defaults to 3001 |
+| `NODE_ENV` | no | `development`, `test` or `production` |
+| `SWAGGER_ENABLED` | no | `true` or `false`. Defaults to on, except in production |
+| `BOT_HEALTH_URL`, `API_PUBLIC_URL` | no | Keep-alive targets for hosts that suspend idle services. See [docs/deployment.md](docs/deployment.md) |
 
-**`apps/bot/.env`** — note the absence of a database URI
+**`apps/bot/.env`** (there is deliberately no database URI)
 
-```bash
-DISCORD_TOKEN=
-DISCORD_APPLICATION_ID=
-DISCORD_DEV_GUILD_ID=        # instant command registration during development
-API_BASE_URL=http://localhost:3001/api/v1
-BOT_SERVICE_TOKEN=           # matches the API
-RECONCILE_INTERVAL_MS=60000
-```
+| Variable | Required | Purpose |
+|---|---|---|
+| `DISCORD_TOKEN` | yes | Bot token |
+| `DISCORD_APPLICATION_ID` | yes | Application id, used to register commands |
+| `API_BASE_URL` | yes | For example `http://localhost:3001/api/v1` |
+| `BOT_SERVICE_TOKEN` | yes | Matches the API |
+| `DISCORD_DEV_GUILD_ID` | no | Register commands to one guild for instant updates |
+| `RECONCILE_INTERVAL_MS` | no | Roster sync interval. Defaults to 60000 |
+| `PORT` | no | Port of the bot's keep-alive HTTP endpoint. Defaults to 3002 |
 
 **`apps/dashboard/.env.local`**
 
-```bash
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=
-DISCORD_CLIENT_ID=
-DISCORD_CLIENT_SECRET=
-DISCORD_BOT_TOKEN=          # same token as apps/bot's DISCORD_TOKEN — lists which guilds the bot is in
-API_JWT_SECRET=             # must match apps/api's JWT_SECRET
-NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
-BOT_HEALTH_URL=             # server-only; bot's public URL, hit by the dashboard's Wake bot button
-API_HEALTH_URL=             # server-only; API's public /health URL, same purpose
-```
+| Variable | Required | Purpose |
+|---|---|---|
+| `NEXTAUTH_URL` | yes | The dashboard's own URL |
+| `NEXTAUTH_SECRET` | yes | Session encryption secret |
+| `API_JWT_SECRET` | yes | Equals the API's `JWT_SECRET` |
+| `NEXT_PUBLIC_API_URL` | yes | For example `http://localhost:3001/api/v1` |
+| `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | yes, unless demo mode | Discord OAuth application |
+| `DISCORD_BOT_TOKEN` | yes, unless demo mode | Same token as the bot. Used to list the guilds the bot is in |
+| `DEMO_MODE` | no | `true` adds the demo sign-in. Ignored in production builds |
+| `BOT_HEALTH_URL`, `API_HEALTH_URL` | no | Targets for the **Wake bot** button |
 
-The dashboard is multi-tenant: after Discord OAuth, a user sees only the guilds where they're a member *and* the bot is installed (computed as the intersection of `/users/@me/guilds` called with the user's token and with the bot's token). One shared guild skips straight through; more than one shows a picker at `/select-guild` before the rest of the app is reachable.
-
----
-
-## Development
-
-```bash
-pnpm dev                     # all apps via turbo
-pnpm --filter api dev
-pnpm --filter bot dev
-pnpm --filter dashboard dev
-
-pnpm build
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm test:watch
-
-pnpm --filter bot deploy-commands       # after changing any command definition
-```
-
-Register commands to `DISCORD_DEV_GUILD_ID` in development — guild commands appear instantly, global ones can take an hour to propagate.
-
----
+The dashboard is multi-tenant. After Discord sign-in a user sees only the servers where they are a member and the bot is installed; with more than one, they pick at `/select-guild`.
 
 ## Testing
 
-The resolver is where correctness lives, so it gets the most coverage. Use `mongodb-memory-server` so tests exercise the real indexes.
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+```
 
-Scenarios that must be covered:
+`pnpm test` runs 215 tests: 130 for the API, 63 for the bot, 21 for the dashboard and one end-to-end scenario. API tests run against `mongodb-memory-server`, so the real indexes and atomic updates are exercised; Mongoose is never mocked.
 
-- Join then leave produces one closed session
-- Duplicate join events produce one session, not two
-- Mute, deafen, and video toggles produce no sessions at all
-- Channel move out of a meeting closes the session
-- Channel move between two active meetings closes one and opens the other
-- Pause closes every open session; resume opens new ones for current occupants
-- A session never spans a pause
-- Sync closes sessions for users who vanished during an outage
-- Sync opens sessions for users who arrived during an outage
-- A replayed sync with an older `observedAt` changes nothing
-- Two concurrent joins for the same user create one attendance document
-- Two concurrent `/start-meeting` calls on one channel: one succeeds, one gets a clean 409
-- The sweeper ends an abandoned meeting and backdates `endedAt` correctly
-- Lateness is measured from `startedAt` to the first join
-- Total duration excludes paused intervals
+What the tests establish:
 
-You cannot reproduce "the bot crashed at 19:37" by hand, repeatedly, at 2am. Write the test.
+- **Resolver correctness under concurrency.** Twenty concurrent joins for one member produce one session. A departure racing another member's join never closes the newcomer. Late or replayed observations change nothing.
+- **Lifecycle rules.** A session never spans a pause. A second start on a channel that already has a live meeting gets a clean 409. Stats frozen at the end equal the live calculation at that instant.
+- **Sweeper.** An abandoned meeting is ended, backdated to its last activity, with sessions closed and stats frozen.
+- **Bot outage recovery, end to end** ([tests/e2e](tests/e2e/src/bot-outage-recovery.spec.ts)). The built API runs as a real process against MongoDB. The bot's real voice handler, queue and reconciler run against a fake gateway. A meeting starts, the bot is stopped while members leave and join, the test confirms the record is stale, then a fresh bot instance starts and after its single startup reconcile the open sessions equal the channel roster.
+- **Security rules.** Tokens are redacted from request logs. A dashboard token cannot touch another guild's data, cannot write without the manager claim, and cannot forge the editor's name.
 
----
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs lint, typecheck, tests, the build, and both Docker image builds on every push and pull request.
+
+## Design decisions and trade-offs
+
+- **Attendance is reconciled state, not an event log.** Events give precise timestamps; the periodic roster sync guarantees the record converges. Both call one idempotent resolver. The cost is that a session reconstructed by sync can be off by up to one sync interval, so each session records whether an event or a sync wrote it.
+- **The bot never touches the database.** Every rule lives in the API, where it can be tested without Discord. The cost is an HTTP hop per event, absorbed by a bounded, per-user ordered queue with retries.
+- **Invariants are enforced by indexes.** "One live meeting per channel" and "one attendance record per member per meeting" are unique indexes, and session opens are single conditional upserts. Check-then-write in application code loses to concurrent voice events.
+- **Timestamps come from the observer.** The resolver never reads the clock, so a retried request cannot shift a record, and the demo simulator can legitimately replay history.
+- **History is snapshotted.** Usernames, role names and the expected-member list are copied at write time. Discord ids are the only references.
+- **No Redis, no queue.** One bot instance and an in-process cron are enough at club scale. Sharding would require putting the reconciler behind a lock.
+- **One contracts package.** Zod schemas define the API payloads, the bot's and dashboard's parsing, and the OpenAPI document, so they cannot drift.
+
+## Known limitations
+
+- A member who leaves and returns entirely within a bot outage is recorded as having stayed. Roster sync can only see who is present when it runs. The end-to-end test asserts this behaviour explicitly.
+- Sessions closed or opened by sync are accurate only to the sync interval (60 seconds by default).
+- Exactly one bot instance may run. There is no sharding and no leader election.
+- Dashboard permissions are read at sign-in. A change to someone's Discord permissions takes effect when they next sign in.
+- Editing an attendee in the dashboard replaces their sessions with a single session from the entered start to the entered end.
+- The API has no rate limiting. It relies on the service token, guild-scoped JWTs and the platform's TLS.
+- The sweeper's thresholds (15 minutes empty, 12 hours maximum) are constants, not configuration.
+- Slash-command flows are covered by unit tests with mocked interactions. Nothing in the automated suite talks to the real Discord gateway.
+- On a host that suspends idle services, the bot must be woken before a meeting starts. See [docs/deployment.md](docs/deployment.md).
+- Not built: scheduling and reminders, excuse handling, spreadsheet export, per-member trends.
 
 ## Deployment
 
-The bot and API are long-running processes and cannot go on Vercel — the bot holds a persistent Discord gateway connection, and the API runs an in-process cron (`MeetingSweeperService`) that needs a continuously-running process, not a serverless function that spins down between requests.
+The API and bot run as Docker web services on Render; the dashboard runs on Vercel; the database is MongoDB Atlas. Both images run as a non-root user and define healthchecks. Details, the free-tier keep-awake setup, upgrade notes and a single-VM Docker Compose alternative are in [docs/deployment.md](docs/deployment.md).
 
-| Component | Target |
-|---|---|
-| API | Any Docker host with an always-on process — this repo's `infra/` targets a single VM (e.g. a cloud "Always Free" tier) |
-| Bot | Same host as the API, single instance |
-| Dashboard | Vercel |
-| Database | MongoDB Atlas free tier |
+## Project layout
 
-`infra/Dockerfile.api` and `infra/Dockerfile.bot` build each app via the standard Turborepo-prune pattern (`turbo prune --docker` extracts just the source and package.json files that app needs, including `packages/contracts`). `infra/docker-compose.prod.yml` runs both, plus a Caddy reverse proxy that gets the API a free automatic TLS certificate — required because the dashboard's client-side mutation components call the API directly from the browser, so once the dashboard is on HTTPS (Vercel), the API must be too or the browser blocks it as mixed content.
-
-**One-time setup on the VM:**
-
-```bash
-git clone https://github.com/sedky02/gdgc-attendance-bot.git && cd gdgc-attendance-bot
-cp infra/.env.example infra/.env               # API_DOMAIN=api.yourdomain.com
-cp infra/.env.api.example infra/.env.api       # fill in production secrets
-cp infra/.env.bot.example infra/.env.bot       # fill in production secrets
-docker compose -f infra/docker-compose.prod.yml up -d --build
+```text
+apps/api          NestJS API: meetings, attendance (resolver, stats), meeting types, reports, internal
+apps/bot          discord.js bot: commands, voice events, reconciler, event queue, embeds
+apps/dashboard    Next.js dashboard
+packages/         contracts (Zod schemas), shared eslint and tsconfig
+tests/e2e         bot outage recovery scenario
+infra/            Dockerfiles, dev and production Compose files, Caddyfile
+docs/             design.md, deployment.md, BUILD_PLAN.md, architecture.md (original spec, historical)
 ```
-
-`JWT_SECRET` (API) must equal the dashboard's `API_JWT_SECRET` (Vercel); `BOT_SERVICE_TOKEN` must be identical in `.env.api` and `.env.bot`. Deploy the dashboard to Vercel separately (root directory `apps/dashboard`), with `NEXT_PUBLIC_API_URL` pointing at `https://<API_DOMAIN>/api/v1` — Next.js inlines this at build time, so set it before the first deploy — and `DISCORD_BOT_TOKEN` set to the same token as `.env.bot`'s `DISCORD_TOKEN`, which the dashboard needs to list which guilds the bot is installed in.
-
-After the API is reachable, register commands globally (not scoped to `DISCORD_DEV_GUILD_ID`):
-
-```bash
-pnpm --filter bot deploy-commands
-```
-
-Run exactly one bot instance — never scale the `bot` service beyond 1 replica. Two instances mean duplicate events and two reconcilers fighting each other. Sharding is not needed below 2,500 guilds and would require moving the reconciler behind a lock.
-
-Before going live: set a strong `BOT_SERVICE_TOKEN`, restrict `CORS_ORIGIN` to the dashboard's real domain, enable Atlas IP allowlisting, and confirm `SWAGGER_ENABLED` is set the way you want it (defaults off when `NODE_ENV=production`).
-
-### Running on Render's free tier
-
-Render's free tier gives 750 instance hours a month and suspends a web service after ~15 minutes with no inbound HTTP traffic. The bot's work is a Discord gateway WebSocket, which generates none, and a suspended bot can't receive slash commands or voice events. Three layers keep it awake only when needed:
-
-1. **Wake button (primary).** In the signed-in dashboard, press **Wake bot** in the sidebar or in the **Bot status** card on the Overview page (the card also appears on the error screen, since a sleeping API makes Overview fail to load). It pings the bot and API via `/api/wake` (using `BOT_HEALTH_URL` / `API_HEALTH_URL` on Vercel; session required) and shows when both are online, usually 30–60 s. Then run `/start-meeting`. Status is never checked on page load, because any request to a sleeping service wakes it. Repeated pings are coalesced into one upstream call per 5 seconds.
-2. **API keep-alive.** While any meeting is `ACTIVE` or `PAUSED`, `MeetingKeepAliveService` pings `BOT_HEALTH_URL` and `API_PUBLIC_URL` every 10 minutes (the API pings itself, or it could sleep and stop pinging the bot). With no live meeting it does nothing, so both services sleep ~15 minutes after the last meeting ends. This covers meetings that run past any external window.
-3. **Optional safety-net window.** In cron-job.org (or UptimeRobot) create one job hitting the bot URL every 10 minutes, scheduled 18:00–00:00 in your local timezone (set the job's timezone; Render runs UTC). That is ~186 h/month per service, ~372 h total, within the 750 budget. Drop it if hours get tight; layers 1 and 2 still work.
-
-Nothing can wake a suspended service except an HTTP request, so a meeting started without layer 1 or 3 having run first will fail until the bot is up.
-
----
-
-## Data rules and invariants
-
-1. A voice channel has at most one `ACTIVE` or `PAUSED` meeting. Enforced by a partial unique index.
-2. A user has at most one `Attendance` document per meeting. Enforced by a compound unique index.
-3. An `Attendance` has at most one session with `leftAt: null`. Enforced by the resolver.
-4. Timestamps always come from the observing client, never from server processing time.
-5. Usernames and role names are snapshots. Discord IDs are canonical.
-6. Meetings are never deleted, including cancelled ones.
-7. Derived values are computed on read while live, and written once on completion.
-8. `expectedMembers` is written at start and never mutated.
-9. Manual edits set `manuallyEdited: true` and record the editor.
-10. Bot users are excluded from attendance entirely.
-
----
-
-## Roadmap
-
-Deliberately out of the MVP:
-
-- AI summaries, transcription, action items
-- Scheduling and reminders
-- Attendance requirements, quotas, or scoring
-- Cross-semester analytics and per-member trends
-- CSV and PDF export
-- Redis, queues, sharding
-
-Each can be added without changing the attendance model, which is the point of getting that model right first.
-
----
 
 ## License
 
-MIT
+No license has been chosen yet. Until one is added, all rights are reserved.
