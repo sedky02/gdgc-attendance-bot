@@ -1,0 +1,22 @@
+{
+  "name": "@meeting-system/e2e",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@meeting-system/api": "workspace:*",
+    "@meeting-system/bot": "workspace:*",
+    "@meeting-system/contracts": "workspace:*",
+    "@meeting-system/eslint-config": "workspace:*",
+    "@meeting-system/tsconfig": "workspace:*",
+    "@types/node": "^22.7.0",
+    "mongodb-memory-server": "^10.1.2",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.2"
+  }
+}
