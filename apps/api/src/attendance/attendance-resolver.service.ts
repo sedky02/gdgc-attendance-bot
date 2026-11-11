@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import type { Model } from "mongoose";
 import type { ManualAttendanceDto, PresentMember, ResolvePresenceParams, Session, SessionSource } from "@meeting-system/contracts";
@@ -24,6 +24,8 @@ function isDuplicateKeyError(error: unknown): error is MongoDuplicateKeyError {
  */
 @Injectable()
 export class AttendanceResolverService {
+  private readonly logger = new Logger(AttendanceResolverService.name);
+
   constructor(
     @InjectModel(Attendance.name) private readonly attendanceModel: Model<Attendance>,
     @InjectModel(Meeting.name) private readonly meetingModel: Model<Meeting>,
@@ -69,6 +71,7 @@ export class AttendanceResolverService {
     );
 
     if (result.modifiedCount > 0) {
+      this.logger.log({ meetingId, discordUserId, observedAt, msg: "Session closed" });
       await this.touchLastActivity(meetingId, observedAt);
     }
   }
@@ -106,6 +109,13 @@ export class AttendanceResolverService {
   /** A lead's correction replaces one attendee's session list wholesale, creating the record if the bot never saw them. */
   async applyManualCorrection(meeting: MeetingDocument, correction: ManualAttendanceDto): Promise<AttendanceDocument> {
     const expected = meeting.expectedMembers.some((member) => member.discordUserId === correction.discordUserId);
+    this.logger.log({
+      meetingId: meeting._id.toString(),
+      discordUserId: correction.discordUserId,
+      editedBy: correction.editedBy,
+      sessionCount: correction.sessions.length,
+      msg: "Attendance manually corrected",
+    });
 
     return this.attendanceModel.findOneAndUpdate(
       { meeting: meeting._id, discordUserId: correction.discordUserId },
@@ -124,7 +134,17 @@ export class AttendanceResolverService {
   }
 
   async replaceSessions(attendanceId: string, sessions: Session[], editedBy: string): Promise<AttendanceDocument | null> {
-    return this.attendanceModel.findByIdAndUpdate(attendanceId, { sessions, manuallyEdited: true, editedBy }, { new: true });
+    const doc = await this.attendanceModel.findByIdAndUpdate(attendanceId, { sessions, manuallyEdited: true, editedBy }, { new: true });
+    if (doc) {
+      this.logger.log({
+        meetingId: doc.meeting.toString(),
+        discordUserId: doc.discordUserId,
+        editedBy,
+        sessionCount: sessions.length,
+        msg: "Attendance sessions replaced",
+      });
+    }
+    return doc;
   }
 
   /**
@@ -142,7 +162,7 @@ export class AttendanceResolverService {
     const expected = meeting.expectedMembers.some((expectedMember) => expectedMember.discordUserId === member.discordUserId);
 
     try {
-      await this.attendanceModel.updateOne(
+      const result = await this.attendanceModel.updateOne(
         {
           meeting: meeting._id,
           discordUserId: member.discordUserId,
@@ -166,6 +186,15 @@ export class AttendanceResolverService {
         },
         { upsert: true },
       );
+      if (result.modifiedCount > 0 || result.upsertedCount > 0) {
+        this.logger.log({
+          meetingId: meeting._id.toString(),
+          discordUserId: member.discordUserId,
+          observedAt,
+          source,
+          msg: "Session opened",
+        });
+      }
     } catch (error) {
       if (!isDuplicateKeyError(error)) {
         throw error;
@@ -174,7 +203,7 @@ export class AttendanceResolverService {
   }
 
   private async closeSessionsNotIn(meetingId: string, presentIds: Set<string>, observedAt: Date): Promise<void> {
-    await this.attendanceModel.updateMany(
+    const result = await this.attendanceModel.updateMany(
       {
         meeting: meetingId,
         discordUserId: { $nin: [...presentIds] },
@@ -183,6 +212,9 @@ export class AttendanceResolverService {
       { $set: { "sessions.$[open].leftAt": observedAt } },
       { arrayFilters: [{ "open.leftAt": null }] },
     );
+    if (result.modifiedCount > 0) {
+      this.logger.log({ meetingId, closedCount: result.modifiedCount, observedAt, msg: "Sync closed sessions for members no longer present" });
+    }
   }
 
   // $max keeps a late-arriving older observation from moving the sweeper's clock backwards.
