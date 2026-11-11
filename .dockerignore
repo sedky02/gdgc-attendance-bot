@@ -10,6 +10,5 @@
 !**/.env.example
 !**/.env.*.example
 docs
-assests
 assets
 *.md
