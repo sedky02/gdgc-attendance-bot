@@ -156,14 +156,15 @@ Manual correction is what makes the system trustworthy. One night of a downed bo
 - [ ] Rate limiting on `/internal/*`
 - [ ] Locked-down CORS
 - [x] OpenAPI/Swagger at `/docs`, schemas generated from `packages/contracts`, off in production by default
-- [ ] Structured logs with `meetingId` correlation throughout
+- [x] Structured logs with `meetingId` and `discordUserId` on attendance and lifecycle changes
 - [ ] Sentry on all three apps
-- [ ] Graceful shutdown: bot flushes the event queue before exiting
-- [ ] Dockerfiles for api, bot, dashboard
-- [ ] CI: lint, typecheck, test on every PR
-- [ ] Deploy API and bot to Railway or Fly, dashboard to Vercel, Mongo to Atlas
+- [x] Graceful shutdown: bot flushes the event queue before exiting
+- [x] Dockerfiles for api and bot, with healthchecks (the dashboard deploys to Vercel and has none)
+- [x] CI: lint, typecheck, test, build and both Docker builds on every push and PR
+- [x] Deploy API and bot to Render, dashboard to Vercel, Mongo to Atlas
 - [ ] Register slash commands globally
-- [ ] Health checks and uptime monitoring
+- [x] Health checks (`/health`, container `HEALTHCHECK`)
+- [ ] Uptime monitoring
 
 **Checkpoint:** a real meeting runs end to end in production. Redeploying the API mid-meeting loses no attendance data.
 
