@@ -12,3 +12,6 @@ infra/.env
 !.env.example
 coverage/
 .DS_Store
+
+# Personal working notes, kept locally only
+docs/personal-thoughts-notes.txt
