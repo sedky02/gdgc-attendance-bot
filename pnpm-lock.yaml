@@ -237,6 +237,36 @@ importers:
 
   packages/tsconfig: {}
 
+  tests/e2e:
+    devDependencies:
+      '@meeting-system/api':
+        specifier: workspace:*
+        version: link:../../apps/api
+      '@meeting-system/bot':
+        specifier: workspace:*
+        version: link:../../apps/bot
+      '@meeting-system/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@meeting-system/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@meeting-system/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      '@types/node':
+        specifier: ^22.7.0
+        version: 22.20.1
+      mongodb-memory-server:
+        specifier: ^10.1.2
+        version: 10.4.3
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(@types/node@22.20.1)(terser@5.50.0)
+
 packages:
 
   '@alloc/quick-lru@5.2.0':
