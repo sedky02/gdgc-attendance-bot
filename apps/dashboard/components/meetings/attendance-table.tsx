@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -74,8 +74,8 @@ export function AttendanceTable({
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {attendance.map((a) => (
-                  <>
-                    <tr key={a.id} className="hover:bg-slate-50">
+                  <Fragment key={a.id}>
+                    <tr className="hover:bg-slate-50">
                       <td className="py-2 pr-4 font-medium text-slate-900">
                         {isLive && (
                           <span
@@ -128,7 +128,7 @@ export function AttendanceTable({
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>
