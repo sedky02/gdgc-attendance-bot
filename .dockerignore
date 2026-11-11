@@ -1,0 +1,15 @@
+# Keeps local secrets and build output out of the image build context.
+.git
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+docs
+assests
+assets
+*.md

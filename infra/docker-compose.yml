@@ -9,6 +9,12 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: root
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   mongo-express:
     image: mongo-express:1
@@ -22,7 +28,8 @@ services:
       ME_CONFIG_BASICAUTH_USERNAME: admin
       ME_CONFIG_BASICAUTH_PASSWORD: admin
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
 
 volumes:
   mongo-data:
