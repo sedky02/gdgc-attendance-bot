@@ -1,4 +1,7 @@
 export function formatDuration(ms: number): string {
+  if (ms > 0 && ms < 60_000) {
+    return "<1m";
+  }
   const totalMinutes = Math.round(ms / 60_000);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
