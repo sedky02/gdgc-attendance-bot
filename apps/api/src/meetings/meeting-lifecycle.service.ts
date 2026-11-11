@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import type { Model } from "mongoose";
 import type {
@@ -24,6 +24,8 @@ const MEETINGS_PAGE_SIZE = 20;
 
 @Injectable()
 export class MeetingLifecycleService {
+  private readonly logger = new Logger(MeetingLifecycleService.name);
+
   constructor(
     @InjectModel(Meeting.name) private readonly meetingModel: Model<Meeting>,
     @Inject(MeetingTypesService) private readonly meetingTypesService: MeetingTypesService,
@@ -61,6 +63,14 @@ export class MeetingLifecycleService {
       translateMongoWriteError(error);
     }
 
+    this.logger.log({
+      meetingId: doc._id.toString(),
+      guildId: dto.guildId,
+      discordUserId: dto.startedBy,
+      expectedCount: dto.expectedMembers.length,
+      msg: "Meeting started",
+    });
+
     // Open sessions for whoever's already in the channel when the meeting starts.
     await this.attendanceResolver.resolvePresence(doc._id.toString(), {
       presentMembers: dto.presentMembers,
@@ -85,6 +95,8 @@ export class MeetingLifecycleService {
       return this.throwIllegalTransition(id, "pause", ["ACTIVE"]);
     }
 
+    this.logger.log({ meetingId: id, discordUserId: dto.pausedBy, msg: "Meeting paused" });
+
     // A session must never span a pause — close everything now, unconditionally.
     await this.attendanceResolver.closeAllOpenSessions(id, dto.observedAt);
 
@@ -104,6 +116,8 @@ export class MeetingLifecycleService {
     if (!updated) {
       return this.throwIllegalTransition(id, "resume", ["PAUSED"]);
     }
+
+    this.logger.log({ meetingId: id, discordUserId: dto.resumedBy, msg: "Meeting resumed" });
 
     // Open fresh sessions for whoever's actually in the channel right now.
     // The meeting is ACTIVE again as of the update above, so resolvePresence's
@@ -130,6 +144,7 @@ export class MeetingLifecycleService {
 
     await this.attendanceResolver.closeAllOpenSessions(id, dto.observedAt);
     await this.attendanceStatsService.freezeStats(id, dto.observedAt);
+    this.logger.log({ meetingId: id, discordUserId: dto.endedBy, msg: "Meeting ended" });
 
     return this.getById(id);
   }
@@ -150,6 +165,7 @@ export class MeetingLifecycleService {
     }
 
     await this.attendanceResolver.closeAllOpenSessions(id, dto.observedAt);
+    this.logger.log({ meetingId: id, discordUserId: dto.cancelledBy, msg: "Meeting cancelled" });
 
     return toMeetingDto(updated);
   }
