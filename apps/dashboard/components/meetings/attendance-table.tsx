@@ -8,6 +8,8 @@ import { formatDuration, formatTime } from "@/lib/format";
 import { EditSessionForm } from "./edit-session-form";
 import { AddAttendeeForm } from "./add-attendee-form";
 
+const LIVE_POLL_INTERVAL_MS = 5_000;
+
 export function AttendanceTable({
   apiToken,
   meetingId,
@@ -25,6 +27,10 @@ export function AttendanceTable({
   const reportQuery = useQuery({
     queryKey: ["meeting-report", meetingId],
     queryFn: () => api.meetings.getReport(apiToken, meetingId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.meeting.status;
+      return status === "ACTIVE" || status === "PAUSED" ? LIVE_POLL_INTERVAL_MS : false;
+    },
   });
 
   if (reportQuery.isLoading) {
@@ -34,12 +40,23 @@ export function AttendanceTable({
     return <p className="text-sm text-red-600">Couldn&apos;t load attendance.</p>;
   }
 
-  const { attendance, absentees } = reportQuery.data;
+  const { meeting, attendance, absentees } = reportQuery.data;
+  const isLive = meeting.status === "ACTIVE" || meeting.status === "PAUSED";
+  const isInChannel = (sessions: { leftAt: Date | null }[]) => sessions.some((session) => session.leftAt === null);
+  const inChannelCount = attendance.filter((a) => isInChannel(a.sessions)).length;
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="mb-2 text-sm font-semibold text-slate-900">Attendance</h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-900">Attendance</h2>
+          {isLive && (
+            <p className="text-xs text-slate-500">
+              <span className="font-medium text-green-700">{inChannelCount} in the channel now</span> · {attendance.length}{" "}
+              attended · {absentees.length} not yet seen
+            </p>
+          )}
+        </div>
         {attendance.length === 0 ? (
           <EmptyState message="Nobody has attended yet." />
         ) : (
@@ -60,6 +77,14 @@ export function AttendanceTable({
                   <>
                     <tr key={a.id} className="hover:bg-slate-50">
                       <td className="py-2 pr-4 font-medium text-slate-900">
+                        {isLive && (
+                          <span
+                            title={isInChannel(a.sessions) ? "In the channel now" : "Left the channel"}
+                            className={`mr-2 inline-block h-2 w-2 rounded-full ${
+                              isInChannel(a.sessions) ? "bg-green-500" : "bg-slate-300"
+                            }`}
+                          />
+                        )}
                         {a.displayNameSnapshot}
                         {!a.expected && (
                           <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">unexpected</span>
