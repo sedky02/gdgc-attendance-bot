@@ -109,3 +109,6 @@ MeetingSchema.index(
 
 // History and active-meeting list queries.
 MeetingSchema.index({ guildId: 1, status: 1, startedAt: -1 });
+
+// The sweeper and the bot's bootstrap look up live meetings across every guild.
+MeetingSchema.index({ status: 1, lastActivityAt: 1 });

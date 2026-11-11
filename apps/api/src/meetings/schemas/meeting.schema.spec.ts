@@ -59,4 +59,13 @@ describe("Meeting indexes", () => {
 
     await expect(MeetingModel.create({ ...baseMeeting, status: "ACTIVE" })).resolves.toBeDefined();
   });
+
+  it("serves the sweeper's cross-guild live-meeting lookup from an index, not a collection scan", async () => {
+    await MeetingModel.create({ ...baseMeeting, status: "ACTIVE", lastActivityAt: new Date("2026-08-16T19:00:00Z") });
+
+    const plan = await MeetingModel.find({ status: "ACTIVE", lastActivityAt: { $lte: new Date() } }).explain("queryPlanner");
+
+    expect(JSON.stringify(plan)).toContain("status_1_lastActivityAt_1");
+    expect(JSON.stringify(plan)).not.toContain("COLLSCAN");
+  });
 });
