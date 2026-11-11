@@ -15,13 +15,13 @@ export default async function MeetingTypesPage() {
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Meeting Types</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Created from Discord via /configure-meeting. Roles are managed there — the dashboard can rename a type.
+          Created from Discord with /create-meeting-type. Roles are managed there; the dashboard can rename a type.
         </p>
       </div>
 
       <Card>
         {meetingTypes.length === 0 ? (
-          <EmptyState message="No meeting types yet — run /configure-meeting in Discord first." />
+          <EmptyState message="No meeting types yet. Run /create-meeting-type in Discord first." />
         ) : (
           <ul className="divide-y divide-slate-100">
             {meetingTypes.map((meetingType) => (
