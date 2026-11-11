@@ -23,8 +23,10 @@ services:
       dockerfile: infra/Dockerfile.bot
     restart: unless-stopped
     env_file: .env.bot
+    # The bot's first action is a bootstrap call to the API, so wait until it answers.
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
   caddy:
     image: caddy:2-alpine
@@ -39,7 +41,8 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   caddy_data:
