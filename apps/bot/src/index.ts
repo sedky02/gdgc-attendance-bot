@@ -6,11 +6,13 @@ import { registerVoiceStateUpdateEvent } from "./events/voice-state-update.js";
 import { initReconciler, bootstrap } from "./services/reconciler.js";
 import { initRosterMessages } from "./services/roster-message.js";
 import { startHealthServer } from "./health-server.js";
+import { registerGracefulShutdown } from "./shutdown.js";
 import { logger } from "./logger.js";
 
 const client = createClient();
 
-startHealthServer();
+const healthServer = startHealthServer();
+registerGracefulShutdown(client, healthServer);
 initReconciler(client);
 initRosterMessages(client);
 registerReadyEvent(client);

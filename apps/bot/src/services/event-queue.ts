@@ -31,3 +31,8 @@ export function enqueue(userId: string, task: () => Promise<void>): void {
 
   queues.set(userId, next);
 }
+
+/** Resolves once every event queued so far has been delivered or has failed. */
+export async function drainEventQueue(): Promise<void> {
+  await Promise.allSettled([...queues.values()]);
+}

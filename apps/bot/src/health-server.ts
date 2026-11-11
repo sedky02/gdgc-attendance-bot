@@ -1,4 +1,4 @@
-import { createServer } from "node:http";
+import { createServer, type Server } from "node:http";
 import { env } from "./config.js";
 import { logger } from "./logger.js";
 
@@ -15,7 +15,7 @@ import { logger } from "./logger.js";
  * gateway connection, same as if this server didn't exist. It just makes
  * that cycle rare instead of constant.
  */
-export function startHealthServer(): void {
+export function startHealthServer(): Server {
   const server = createServer((_req, res) => {
     res.writeHead(200, { "Content-Type": "text/plain" });
     res.end("ok");
@@ -24,4 +24,6 @@ export function startHealthServer(): void {
   server.listen(env.PORT, () => {
     logger.info({ port: env.PORT }, "Keep-alive HTTP server listening");
   });
+
+  return server;
 }
