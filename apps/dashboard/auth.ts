@@ -5,9 +5,7 @@ import { SignJWT } from "jose";
 import { DEMO_GUILD, DEMO_USER } from "@meeting-system/contracts";
 import { fetchBotGuildIds, fetchUserGuilds, intersectGuilds } from "./lib/guild-membership";
 import { DEMO_PROVIDER_ID, isDemoMode } from "./lib/demo-mode";
-
-const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
-const API_JWT_SECRET = new TextEncoder().encode(process.env.API_JWT_SECRET!);
+import { getServerEnv } from "./lib/server-env";
 
 export const { handlers, signIn, signOut, auth, unstable_update }: NextAuthResult = NextAuth({
   providers: [
@@ -38,6 +36,7 @@ export const { handlers, signIn, signOut, auth, unstable_update }: NextAuthResul
       // dashboard is multi-tenant now. Any authenticated Discord user may
       // sign in; which guilds they can actually see data for is resolved in
       // `jwt` below, as the intersection of their guilds and the bot's.
+      getServerEnv();
       if (account?.provider === DEMO_PROVIDER_ID) {
         return isDemoMode();
       }
@@ -64,7 +63,7 @@ export const { handlers, signIn, signOut, auth, unstable_update }: NextAuthResul
       if (account?.access_token) {
         const [userGuilds, botGuildIds] = await Promise.all([
           fetchUserGuilds(account.access_token),
-          fetchBotGuildIds(DISCORD_BOT_TOKEN),
+          fetchBotGuildIds(getServerEnv().DISCORD_BOT_TOKEN),
         ]);
         token.availableGuilds = intersectGuilds(userGuilds, botGuildIds);
 
@@ -132,7 +131,7 @@ export const { handlers, signIn, signOut, auth, unstable_update }: NextAuthResul
       })
         .setProtectedHeader({ alg: "HS256" })
         .setExpirationTime("7d")
-        .sign(API_JWT_SECRET);
+        .sign(new TextEncoder().encode(getServerEnv().API_JWT_SECRET));
 
       return session;
     },

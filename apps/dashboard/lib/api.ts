@@ -28,6 +28,9 @@ export class ApiError extends Error {
 }
 
 async function apiFetch<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
+  if (!API_BASE_URL) {
+    throw new Error("NEXT_PUBLIC_API_URL is not set. See apps/dashboard/.env.example.");
+  }
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
