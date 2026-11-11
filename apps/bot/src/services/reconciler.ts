@@ -33,6 +33,13 @@ export function untrackMeeting(meetingId: string): void {
   }
 }
 
+export function stopReconciler(): void {
+  if (intervalHandle) {
+    clearInterval(intervalHandle);
+    intervalHandle = null;
+  }
+}
+
 /**
  * Every 60s per active meeting, per the reconciler's job. Also the only
  * place that notices a meeting this process still believes is ACTIVE has

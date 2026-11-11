@@ -11,6 +11,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
   app.useLogger(app.get(Logger));
+  // On SIGTERM (a deploy or container stop) finish in-flight requests and close Mongo cleanly.
+  app.enableShutdownHooks();
   app.setGlobalPrefix("api/v1", { exclude: ["health"] });
 
   const configService = app.get(ConfigService<Env, true>);
