@@ -1,3 +1,5 @@
+> **Historical document.** This is the original design spec written before the build. It is kept for context and is not maintained: where it differs from the code, `README.md` and `docs/design.md` are correct (for example, the `MeetingReport` collection described here was never built).
+
 # Discord Meeting Management System
 
 ## 1. Overview
