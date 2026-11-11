@@ -3,9 +3,10 @@ import mongoose from "mongoose";
 import { MeetingType, MeetingTypeSchema } from "../src/meeting-types/schemas/meeting-type.schema.js";
 import { Meeting, MeetingSchema } from "../src/meetings/schemas/meeting.schema.js";
 import { Attendance, AttendanceSchema } from "../src/attendance/schemas/attendance.schema.js";
+import { DEMO_GUILD, DEMO_USER } from "@meeting-system/contracts";
 
-const SEED_GUILD_ID = "111111111111111111";
-const CREATED_BY = "444444444444444444";
+const SEED_GUILD_ID = DEMO_GUILD.id;
+const CREATED_BY = DEMO_USER.discordUserId;
 
 const TECHNICAL_ROLE_ID = "222222222222222222";
 const OFFICER_ROLE_ID = "333333333333333333";
